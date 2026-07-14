@@ -386,7 +386,7 @@ export default function Home() {
                   spacing: 'md',
                   alignItems: 'center',
                   contents: [
-                    ...(creatorPicture ? [{
+                    ...(creatorPicture && creatorPicture.startsWith('https') ? [{
                       type: 'image',
                       url: creatorPicture,
                       size: 'xxs',
@@ -523,7 +523,7 @@ export default function Home() {
                   margin: 'md',
                   spacing: 'md',
                   contents: [
-                    buyerPicture ? {
+                    (buyerPicture && buyerPicture.startsWith('https')) ? {
                       type: 'image',
                       url: buyerPicture,
                       size: 'xxs',
@@ -644,47 +644,66 @@ export default function Home() {
 
   // Share/Send Flex message inside LIFF
   const shareMessage = async (messagePayload: any, directLink: string) => {
+    console.log('Starting shareMessage...', { messagePayload, directLink });
     try {
       const liff = (await import('@line/liff')).default;
       
+      if (!liff.isLoggedIn()) {
+        console.log('User not logged in, attempting login...');
+        liff.login();
+        return;
+      }
+
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
       if (!liffId) {
+        console.log('No LIFF ID found');
         alert(`โหมดพัฒนา (ไม่มี LIFF ID) คัดลอกลิงก์ไปแชร์: ${directLink}`);
         return;
       }
 
-      // 1. Check if shareTargetPicker is available (most reliable for sending Flex messages)
+      // 1. Check if shareTargetPicker is available
+      console.log('Checking shareTargetPicker availability...');
       if (liff.isApiAvailable('shareTargetPicker')) {
+        console.log('shareTargetPicker is available, opening...');
         try {
           const pickerResponse = await liff.shareTargetPicker([messagePayload]);
+          console.log('shareTargetPicker response:', pickerResponse);
           if (pickerResponse) {
-            alert('ส่งการแจ้งเตือนเสร็จสิ้น!');
+            // Success
             return;
+          } else {
+            console.log('Target picker was closed without sharing');
           }
         } catch (pickerErr: any) {
-          console.warn('shareTargetPicker failed:', pickerErr);
+          console.error('shareTargetPicker error:', pickerErr);
         }
+      } else {
+        console.log('shareTargetPicker is NOT available');
       }
 
-      // 2. Try sending directly to the active chat context if available
+      // 2. Try sending directly to the active chat context
       const context = liff.getContext();
-      if (context && context.type) {
+      console.log('LIFF Context:', context);
+      if (context && context.type && ['utou', 'room', 'group', 'external'].includes(context.type)) {
+        console.log('Attempting liff.sendMessages...');
         try {
           await liff.sendMessages([messagePayload]);
+          console.log('liff.sendMessages success');
           alert('ส่งการแจ้งเตือนสำเร็จ!');
           return;
         } catch (msgErr: any) {
-          console.warn('liff.sendMessages failed:', msgErr);
+          console.error('liff.sendMessages failed:', msgErr);
         }
       }
 
-      // 3. Last fallback: copy link to clipboard and alert user
+      // 3. Last fallback: copy link to clipboard
+      console.log('Falling back to clipboard copy');
       navigator.clipboard.writeText(directLink);
-      alert(`ไม่สามารถส่ง Flex Message ได้ โปรดแชร์ลิงก์นี้ด้วยตนเอง: ${directLink}`);
+      alert(`สร้างออเดอร์สำเร็จ! กรุณาคัดลอกลิงก์ไปแชร์ในแชท: ${directLink}`);
     } catch (err) {
-      console.error('Error sharing message:', err);
+      console.error('Error in shareMessage:', err);
       navigator.clipboard.writeText(directLink);
-      alert(`เกิดข้อผิดพลาด โปรดแชร์ลิงก์นี้ด้วยตนเอง: ${directLink}`);
+      alert(`เกิดข้อผิดพลาด: ${directLink}`);
     }
   };
 
