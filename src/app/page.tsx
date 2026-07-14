@@ -147,11 +147,11 @@ export default function Home() {
           });
           setQuantities(initialQuantities);
         } else {
-          setError(data.error || 'Failed to fetch order details.');
+          setOrderDetails(null);
         }
       } catch (err: any) {
         console.error('Fetch order error:', err);
-        setError('Network error: Failed to fetch order details.');
+        setOrderDetails(null);
       } finally {
         setLoading(false);
       }
@@ -159,6 +159,27 @@ export default function Home() {
 
     fetchOrderDetails();
   }, [orderId, liffProfile]);
+
+  // Automatically close window if orderId is set but orderDetails is not found
+  useEffect(() => {
+    if (orderId && !orderDetails && !loading) {
+      const timer = setTimeout(() => {
+        import('@line/liff').then((m) => {
+          const liff = m.default;
+          try {
+            if (liff.isLoggedIn()) {
+              liff.closeWindow();
+            } else {
+              window.close();
+            }
+          } catch (e) {
+            window.close();
+          }
+        });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [orderId, orderDetails, loading]);
 
   // Fetch orders created by this user when on setting-up screen
   useEffect(() => {
@@ -630,23 +651,38 @@ export default function Home() {
         return;
       }
 
-      if (liff.isApiAvailable('shareTargetPicker')) {
-        const pickerResponse = await liff.shareTargetPicker([messagePayload]);
-        if (pickerResponse) {
-          alert('ส่งการแจ้งเตือนเสร็จสิ้น!');
-        }
-      } else {
+      // 1. Try sending directly to the active chat context first if available
+      const context = liff.getContext();
+      if (context) {
         try {
           await liff.sendMessages([messagePayload]);
           alert('ส่งการแจ้งเตือนสำเร็จ!');
-        } catch (msgErr) {
-          console.error('liff.sendMessages error:', msgErr);
-          alert(`ไม่สามารถส่งแชทตรงได้ คัดลอกลิงก์ไปแชร์: ${directLink}`);
+          return;
+        } catch (msgErr: any) {
+          console.warn('liff.sendMessages failed, falling back to shareTargetPicker:', msgErr);
         }
       }
+
+      // 2. Fallback to shareTargetPicker to let user choose target
+      if (liff.isApiAvailable('shareTargetPicker')) {
+        try {
+          const pickerResponse = await liff.shareTargetPicker([messagePayload]);
+          if (pickerResponse) {
+            alert('ส่งการแจ้งเตือนเสร็จสิ้น!');
+            return;
+          }
+        } catch (pickerErr: any) {
+          console.error('shareTargetPicker failed:', pickerErr);
+        }
+      }
+
+      // 3. Last fallback: copy link to clipboard and alert user
+      navigator.clipboard.writeText(directLink);
+      alert(`คัดลอกลิงก์สำหรับแชร์เรียบร้อยแล้ว: ${directLink}`);
     } catch (err) {
       console.error('Error sharing target picker:', err);
-      alert(`คัดลอกลิงก์ไปแชร์: ${directLink}`);
+      navigator.clipboard.writeText(directLink);
+      alert(`คัดลอกลิงก์สำหรับแชร์เรียบร้อยแล้ว: ${directLink}`);
     }
   };
 
@@ -1274,25 +1310,41 @@ export default function Home() {
           </div>
         ) : (
           !loading && (
-            <div className={styles.card} style={{ textAlign: 'center', padding: '30px' }}>
-              <span style={{ fontSize: '32px' }}>🔍</span>
-              <h3 style={{ marginTop: '10px' }}>ไม่พบข้อมูลออเดอร์</h3>
-              <p className={styles.label} style={{ marginTop: '6px' }}>กรุณาตรวจสอบลิงก์ออเดอร์อีกครั้ง</p>
+            <div className={styles.card} style={{ textAlign: 'center', padding: '40px 20px', gap: '12px' }}>
+              <span style={{ fontSize: '36px' }}>🔍</span>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>ไม่พบข้อมูลออเดอร์</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>ระบบกำลังปิดหน้านี้อัตโนมัติ</p>
             </div>
           )
         )
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div className={styles.card} style={{ gap: '16px', padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {liffProfile?.pictureUrl ? (
-                <img src={liffProfile.pictureUrl} alt="Creator" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-blue)' }} />
-              ) : (
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ผู้ตั้งแผง</span>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{liffProfile?.displayName || 'ผู้ตั้งแผง'}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', width: '100%', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {liffProfile?.pictureUrl ? (
+                  <img src={liffProfile.pictureUrl} alt="Creator" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-blue)' }} />
+                ) : (
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ผู้ตั้งแผง</span>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{liffProfile?.displayName || 'ผู้ตั้งแผง'}</span>
+                </div>
+              </div>
+
+              {/* Date and Time aligned to the right */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>วันที่ตั้งแผง</span>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {new Date().toLocaleDateString('th-TH', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} น.
+                </span>
               </div>
             </div>
           </div>
