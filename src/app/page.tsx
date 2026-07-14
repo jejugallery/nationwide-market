@@ -891,13 +891,12 @@ export default function Home() {
       ) : (
         /* 2. CREATE ORDER VIEW (Default screen) */
         <form onSubmit={handleSubmitCreateOrder} className={styles.card}>
-          <h3 className={styles.sectionTitle}>รายละเอียดเปิดรับออเดอร์</h3>
+          <h3 className={styles.sectionTitle}>ออเดอร์</h3>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>ชื่อออเดอร์</label>
             <input 
               type="text" 
-              placeholder="เช่น ข้าวมันไก่เจ๊ใจ, สั่งชานมไข่มุก" 
+              placeholder="ชื่อออเดอร์" 
               value={orderName} 
               onChange={(e) => setOrderName(e.target.value)} 
               className={styles.input} 
