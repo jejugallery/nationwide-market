@@ -20,6 +20,7 @@ interface OrderDetails {
   creatorPicture?: string;
   creatorUserId?: string;
   isActive?: boolean;
+  createdAt?: string;
   items: {
     id: string;
     name: string;
@@ -975,10 +976,23 @@ export default function Home() {
         <h1 className={styles.title}>Nationwide Market</h1>
         <span className={styles.subtitle}>ระบบตั้งแผงขายของบริษัทเนชั่นไวด์</span>
         {orderId && orderDetails && (
-          <span className={styles.badge}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }}></span>
-            เปิดรับออเดอร์: {orderDetails.name}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
+            <span className={styles.badge}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }}></span>
+              เปิดรับออเดอร์: {orderDetails.name}
+            </span>
+            {orderDetails.createdAt && (
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                สร้างเมื่อ: {new Date(orderDetails.createdAt).toLocaleDateString('th-TH', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })} น.
+              </span>
+            )}
+          </div>
         )}
       </header>
 
@@ -1063,30 +1077,6 @@ export default function Home() {
                         }}
                       >
                         📋 ดูคำสั่งซื้อ ({orderDetails.buyerOrders?.length || 0})
-                      </button>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fafc', borderRadius: 'var(--border-radius-md)', border: '1px solid #cbd5e1' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800 }}>สถานะการรับคิว</span>
-                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>{orderDetails.isActive ? 'เปิดรับออเดอร์จากลูกค้าปกติ' : 'ปิดรับคิวสั่งซื้อแล้ว ลูกค้าจะเข้าสั่งไม่ได้'}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleOrderStatus(orderDetails.id, !!orderDetails.isActive, true)}
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          padding: '4px 10px',
-                          borderRadius: '50px',
-                          border: '1px solid',
-                          borderColor: orderDetails.isActive ? '#ef4444' : '#0284c7',
-                          background: orderDetails.isActive ? '#fef2f2' : '#f0f9ff',
-                          color: orderDetails.isActive ? '#ef4444' : '#0284c7',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {orderDetails.isActive ? '⛔ ปิดรับออเดอร์' : '✅ เปิดรับออเดอร์'}
                       </button>
                     </div>
                   </div>
@@ -1361,8 +1351,19 @@ export default function Home() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {creatorOrders.map((co) => (
                   <div key={co.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: '13px', color: '#1e3a8a' }}>{co.name}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontWeight: 800, fontSize: '13px', color: '#1e3a8a' }}>{co.name}</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                          สร้างเมื่อ: {new Date(co.createdAt).toLocaleDateString('th-TH', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })} น.
+                        </span>
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>({co.buyerCount} คำสั่งซื้อ)</span>
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '8px', background: co.isActive ? '#f0f9ff' : '#f1f5f9', color: co.isActive ? '#0284c7' : '#64748b', border: '1px solid #cbd5e1' }}>
