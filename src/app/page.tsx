@@ -239,7 +239,7 @@ export default function Home() {
             {
               type: 'box',
               layout: 'vertical',
-              backgroundColor: '#10b981',
+              backgroundColor: '#0284c7',
               paddingAll: 'xl',
               contents: [
                 {
@@ -296,7 +296,7 @@ export default function Home() {
             {
               type: 'button',
               style: 'primary',
-              color: '#10b981',
+              color: '#0284c7',
               action: {
                 type: 'uri',
                 label: '🛒 กดสั่งเลย',
@@ -344,13 +344,13 @@ export default function Home() {
             {
               type: 'box',
               layout: 'vertical',
-              backgroundColor: '#064e3b',
+              backgroundColor: '#0369a1',
               paddingAll: 'xl',
               contents: [
                 {
                   type: 'text',
                   text: '✅ สั่งสินค้าเรียบร้อย!',
-                  color: '#34d399',
+                  color: '#38bdf8',
                   weight: 'bold',
                   size: 'xs',
                 },
@@ -410,7 +410,7 @@ export default function Home() {
                       weight: 'bold',
                       size: 'md',
                       align: 'right',
-                      color: '#10b981',
+                      color: '#0284c7',
                     },
                   ],
                 },
@@ -418,7 +418,7 @@ export default function Home() {
                   type: 'box',
                   layout: 'horizontal',
                   margin: 'md',
-                  backgroundColor: 'rgba(52, 211, 153, 0.08)',
+                  backgroundColor: 'rgba(2, 132, 199, 0.08)',
                   cornerRadius: 'md',
                   paddingAll: 'md',
                   contents: [
@@ -426,7 +426,7 @@ export default function Home() {
                       type: 'text',
                       text: '🛡️ แนบสลิปและยืนยันแล้วโดย AI',
                       size: 'xs',
-                      color: '#34d399',
+                      color: '#0284c7',
                       align: 'center',
                       weight: 'bold',
                     },
@@ -732,7 +732,7 @@ export default function Home() {
     <div className={styles.container}>
       {/* HEADER SECTION */}
       <header className={styles.header}>
-        <h1 className={styles.title}>Nationwide Market System</h1>
+        <h1 className={styles.title}>Nationwide Market</h1>
         <span className={styles.subtitle}>ระบบตั้งแผงขายของบริษัทเนชั่นไวด์</span>
         {orderId && orderDetails && (
           <span className={styles.badge}>

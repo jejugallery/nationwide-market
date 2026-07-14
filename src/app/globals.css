@@ -1,8 +1,8 @@
 :root {
-  --primary-emerald: #10b981;
-  --primary-dark: #0f766e;
-  --primary-light: #34d399;
-  --primary-glow: rgba(16, 185, 129, 0.1);
+  --primary-blue: #0284c7;
+  --primary-dark: #0369a1;
+  --primary-light: #38bdf8;
+  --primary-glow: rgba(2, 132, 199, 0.08);
   
   --bg-deep: #f8fafc;
   --bg-card: #ffffff;
@@ -11,12 +11,12 @@
   
   --text-primary: #1e293b;
   --text-secondary: #64748b;
-  --text-accent: #0f766e;
+  --text-accent: #0369a1;
   
   --error: #ef4444;
   --error-bg: #fef2f2;
-  --success: #10b981;
-  --success-bg: #f0fdf4;
+  --success: #0284c7;
+  --success-bg: #f0f9ff;
   
   --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --glass-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
