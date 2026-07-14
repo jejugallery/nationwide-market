@@ -732,8 +732,8 @@ export default function Home() {
     <div className={styles.container}>
       {/* HEADER SECTION */}
       <header className={styles.header}>
-        <h1 className={styles.title}>LINE Market Order</h1>
-        <span className={styles.subtitle}>สั่งซื้อสะดวก ตรวจสอบสลิปผ่าน AI ทันใจ</span>
+        <h1 className={styles.title}>Nationwide Market System</h1>
+        <span className={styles.subtitle}>ระบบตั้งแผงขายของบริษัทเนชั่นไวด์</span>
         {orderId && orderDetails && (
           <span className={styles.badge}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }}></span>
@@ -894,7 +894,7 @@ export default function Home() {
           <h3 className={styles.sectionTitle}>รายละเอียดเปิดรับออเดอร์</h3>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>ชื่อออเดอร์ / ร้านค้า</label>
+            <label className={styles.label}>ชื่อออเดอร์</label>
             <input 
               type="text" 
               placeholder="เช่น ข้าวมันไก่เจ๊ใจ, สั่งชานมไข่มุก" 
@@ -905,7 +905,7 @@ export default function Home() {
             />
           </div>
 
-          <h3 className={styles.sectionTitle} style={{ marginTop: '8px' }}>รายการและราคา (เพิ่มรายการ)</h3>
+          <h3 className={styles.sectionTitle} style={{ marginTop: '8px' }}>รายการสินค้า</h3>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {items.map((item, index) => (
