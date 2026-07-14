@@ -1179,6 +1179,12 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
+                    {!orderDetails.isActive && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: 'var(--border-radius-md)', color: '#ef4444', fontSize: '13px', fontWeight: 800, marginBottom: '8px' }}>
+                        🕒 ออเดอร์นี้ปิดรับคิวสั่งซื้อแล้ว
+                      </div>
+                    )}
+
                     <div className={styles.card}>
                       <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
                       
@@ -1296,11 +1302,11 @@ export default function Home() {
                       <button 
                         type="button" 
                         onClick={handleSubmitPlaceOrder} 
-                        disabled={loading || calculateTotal() === 0 || (!payLater && !slipBase64)} 
+                        disabled={loading || calculateTotal() === 0 || (!payLater && !slipBase64) || !orderDetails.isActive} 
                         className={styles.btn}
                         style={{ marginTop: '10px' }}
                       >
-                        {loading ? <div className={styles.spinner}></div> : '🛒 ยืนยันสั่งสินค้า'}
+                        {loading ? <div className={styles.spinner}></div> : (!orderDetails.isActive ? '🕒 ปิดรับคิวสั่งซื้อแล้ว' : '🛒 ยืนยันสั่งสินค้า')}
                       </button>
                     </div>
                   </>
