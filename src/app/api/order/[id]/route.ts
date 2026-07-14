@@ -30,6 +30,48 @@ export async function GET(
       price: parseFloat(item.price)
     }));
 
+    // 3. Fetch buyer orders if requester is creator
+    let buyerOrders: any[] = [];
+    try {
+      const { searchParams } = new URL(request.url);
+      const requesterUserId = searchParams.get('userId');
+      if (requesterUserId && requesterUserId === order.creator_user_id) {
+        const buyerOrdersResult = await sql`
+          SELECT bo.id, bo.buyer_name, bo.buyer_user_id, bo.buyer_picture, bo.slip_url, bo.total_amount, bo.verified, bo.pay_later, bo.created_at,
+                 COALESCE(
+                   json_agg(
+                     json_build_object(
+                       'name', oi.name,
+                       'price', oi.price,
+                       'quantity', boi.quantity
+                     )
+                   ) FILTER (WHERE oi.id IS NOT NULL),
+                   '[]'
+                 ) as items
+          FROM buyer_orders bo
+          LEFT JOIN buyer_order_items boi ON bo.id = boi.buyer_order_id
+          LEFT JOIN order_items oi ON boi.order_item_id = oi.id
+          WHERE bo.order_id = ${id}
+          GROUP BY bo.id
+          ORDER BY bo.created_at DESC
+        `;
+        buyerOrders = buyerOrdersResult.map((bo: any) => ({
+          id: bo.id,
+          buyerName: bo.buyer_name,
+          buyerUserId: bo.buyer_user_id,
+          buyerPicture: bo.buyer_picture,
+          slipUrl: bo.slip_url,
+          totalAmount: parseFloat(bo.total_amount),
+          verified: bo.verified,
+          payLater: bo.pay_later,
+          createdAt: bo.created_at,
+          items: bo.items
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch buyer orders:', err);
+    }
+
     return NextResponse.json({
       success: true,
       order: {
@@ -40,8 +82,10 @@ export async function GET(
         accountNumber: order.account_number,
         creatorName: order.creator_name,
         creatorPicture: order.creator_picture,
+        creatorUserId: order.creator_user_id,
         createdAt: order.created_at,
-        items
+        items,
+        buyerOrders
       }
     });
   } catch (error: any) {

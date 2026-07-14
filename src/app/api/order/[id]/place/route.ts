@@ -12,11 +12,18 @@ export async function POST(
     const { id: orderId } = await params;
     const body = await request.json();
 
-    const { buyerName, buyerUserId, slipBase64, slipMimeType, items } = body;
+    const { buyerName, buyerUserId, buyerPicture, slipBase64, slipMimeType, items, payLater } = body;
 
-    if (!buyerName || !buyerUserId || !slipBase64 || !slipMimeType || !items || !Array.isArray(items) || items.length === 0) {
+    if (!buyerName || !buyerUserId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Missing or invalid fields. Buyer details, slip image, and items are required.' },
+        { success: false, error: 'Missing or invalid fields. Buyer details and items are required.' },
+        { status: 400 }
+      );
+    }
+
+    if (!payLater && (!slipBase64 || !slipMimeType)) {
+      return NextResponse.json(
+        { success: false, error: 'Slip image is required when not choosing Pay Later.' },
         { status: 400 }
       );
     }
@@ -67,94 +74,101 @@ export async function POST(
       });
     }
 
-    // 3. Prevent duplicate image upload early by hashing image bytes
-    const fileHash = crypto.createHash('sha256').update(slipBase64).digest('hex');
-    const hashCheck = await sql`
-      SELECT id FROM buyer_orders WHERE slip_hash = ${fileHash}
-    `;
+    let uploadedSlipUrl = 'PAY_LATER';
+    let slipHash = null;
+    let slipAnalysis: any = { payLater: true };
+    let verified = false;
 
-    if (hashCheck.length > 0) {
-      return NextResponse.json(
-        { success: false, error: 'This transfer slip image has already been submitted for another order.' },
-        { status: 400 }
-      );
-    }
-
-    // 4. Verify slip details via Gemini AI
-    let slipAnalysis;
-    try {
-      slipAnalysis = await verifySlip(slipBase64, slipMimeType, order.account_name);
-    } catch (geminiError: any) {
-      console.error('Gemini slip validation error:', geminiError);
-      return NextResponse.json(
-        { success: false, error: `Slip verification service error: ${geminiError.message}` },
-        { status: 500 }
-      );
-    }
-
-    if (!slipAnalysis.is_slip) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid document: The uploaded file is not recognized as a valid bank transfer slip.' },
-        { status: 400 }
-      );
-    }
-
-    // 5. Verify total transfer amount matches order total
-    const slipAmount = parseFloat(slipAnalysis.amount.toFixed(2));
-    const targetAmount = parseFloat(calculatedTotal.toFixed(2));
-
-    if (Math.abs(slipAmount - targetAmount) > 0.01) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Payment amount mismatch: Slip indicates a transfer of ${slipAmount} THB, but the total price is ${targetAmount} THB.`
-        },
-        { status: 400 }
-      );
-    }
-
-    // 6. Verify receiver name matches expected merchant account name (from Gemini)
-    if (!slipAnalysis.receiver_matches) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Recipient mismatch: The money was transferred to "${slipAnalysis.receiver}", but the merchant bank account name is "${order.account_name}".`
-        },
-        { status: 400 }
-      );
-    }
-
-    // 7. Verify transaction reference code uniqueness
-    let slipHash = fileHash;
-    if (slipAnalysis.ref_no && slipAnalysis.ref_no.trim() !== '') {
-      slipHash = slipAnalysis.ref_no.trim();
-      const refCheck = await sql`
-        SELECT id FROM buyer_orders WHERE slip_hash = ${slipHash}
+    if (!payLater) {
+      // 3. Prevent duplicate image upload early by hashing image bytes
+      const fileHash = crypto.createHash('sha256').update(slipBase64).digest('hex');
+      const hashCheck = await sql`
+        SELECT id FROM buyer_orders WHERE slip_hash = ${fileHash}
       `;
-      if (refCheck.length > 0) {
+
+      if (hashCheck.length > 0) {
         return NextResponse.json(
-          { success: false, error: `This slip transaction (Ref: ${slipHash}) has already been used.` },
+          { success: false, error: 'This transfer slip image has already been submitted for another order.' },
           { status: 400 }
         );
       }
-    }
 
-    // 8. Upload slip to Imgbb for hosting
-    let uploadedSlipUrl = '';
-    try {
-      uploadedSlipUrl = await uploadToImgbb(slipBase64);
-    } catch (uploadError: any) {
-      console.error('Imgbb upload error:', uploadError);
-      return NextResponse.json(
-        { success: false, error: `Failed to store slip image: ${uploadError.message}` },
-        { status: 500 }
-      );
+      // 4. Verify slip details via Gemini AI
+      try {
+        slipAnalysis = await verifySlip(slipBase64, slipMimeType, order.account_name);
+      } catch (geminiError: any) {
+        console.error('Gemini slip validation error:', geminiError);
+        return NextResponse.json(
+          { success: false, error: `Slip verification service error: ${geminiError.message}` },
+          { status: 500 }
+        );
+      }
+
+      if (!slipAnalysis.is_slip) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid document: The uploaded file is not recognized as a valid bank transfer slip.' },
+          { status: 400 }
+        );
+      }
+
+      // 5. Verify total transfer amount matches order total
+      const slipAmount = parseFloat(slipAnalysis.amount.toFixed(2));
+      const targetAmount = parseFloat(calculatedTotal.toFixed(2));
+
+      if (Math.abs(slipAmount - targetAmount) > 0.01) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Payment amount mismatch: Slip indicates a transfer of ${slipAmount} THB, but the total price is ${targetAmount} THB.`
+          },
+          { status: 400 }
+        );
+      }
+
+      // 6. Verify receiver name matches expected merchant account name (from Gemini)
+      if (!slipAnalysis.receiver_matches) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Recipient mismatch: The money was transferred to "${slipAnalysis.receiver}", but the merchant bank account name is "${order.account_name}".`
+          },
+          { status: 400 }
+        );
+      }
+
+      // 7. Verify transaction reference code uniqueness
+      slipHash = fileHash;
+      if (slipAnalysis.ref_no && slipAnalysis.ref_no.trim() !== '') {
+        slipHash = slipAnalysis.ref_no.trim();
+        const refCheck = await sql`
+          SELECT id FROM buyer_orders WHERE slip_hash = ${slipHash}
+        `;
+        if (refCheck.length > 0) {
+          return NextResponse.json(
+            { success: false, error: `This slip transaction (Ref: ${slipHash}) has already been used.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      // 8. Upload slip to Imgbb for hosting
+      try {
+        uploadedSlipUrl = await uploadToImgbb(slipBase64);
+      } catch (uploadError: any) {
+        console.error('Imgbb upload error:', uploadError);
+        return NextResponse.json(
+          { success: false, error: `Failed to store slip image: ${uploadError.message}` },
+          { status: 500 }
+        );
+      }
+      
+      verified = true;
     }
 
     // 9. Record buyer order in database
     const buyerOrderResult = await sql`
-      INSERT INTO buyer_orders (order_id, buyer_name, buyer_user_id, slip_url, slip_hash, total_amount, verified, verification_result)
-      VALUES (${orderId}, ${buyerName}, ${buyerUserId}, ${uploadedSlipUrl}, ${slipHash}, ${calculatedTotal}, TRUE, ${JSON.stringify(slipAnalysis)})
+      INSERT INTO buyer_orders (order_id, buyer_name, buyer_user_id, buyer_picture, slip_url, slip_hash, total_amount, verified, pay_later, verification_result)
+      VALUES (${orderId}, ${buyerName}, ${buyerUserId}, ${buyerPicture || null}, ${uploadedSlipUrl}, ${slipHash}, ${calculatedTotal}, ${verified}, ${payLater || false}, ${JSON.stringify(slipAnalysis)})
       RETURNING id
     `;
 

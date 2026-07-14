@@ -13,6 +13,7 @@ export async function GET() {
         account_number VARCHAR(255) NOT NULL,
         creator_name VARCHAR(255),
         creator_picture TEXT,
+        creator_user_id VARCHAR(255),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `;
@@ -20,6 +21,7 @@ export async function GET() {
     // Ensure columns exist for backward compatibility
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_name VARCHAR(255)`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_picture TEXT`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_user_id VARCHAR(255)`;
 
     // 2. Create order_items table
     await sql`
@@ -39,14 +41,20 @@ export async function GET() {
         order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
         buyer_name VARCHAR(255) NOT NULL,
         buyer_user_id VARCHAR(255) NOT NULL,
+        buyer_picture TEXT,
         slip_url VARCHAR(1024) NOT NULL,
         slip_hash VARCHAR(255) UNIQUE,
         total_amount DECIMAL(10, 2) NOT NULL,
         verified BOOLEAN DEFAULT FALSE,
+        pay_later BOOLEAN DEFAULT FALSE,
         verification_result JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `;
+
+    // Ensure columns exist for buyer_orders compatibility
+    await sql`ALTER TABLE buyer_orders ADD COLUMN IF NOT EXISTS buyer_picture TEXT`;
+    await sql`ALTER TABLE buyer_orders ADD COLUMN IF NOT EXISTS pay_later BOOLEAN DEFAULT FALSE`;
 
     // 4. Create buyer_order_items table
     await sql`
