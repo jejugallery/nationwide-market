@@ -372,7 +372,7 @@ export default function Home() {
         body: {
           type: 'box',
           layout: 'vertical',
-          paddingAll: '0px',
+          paddingAll: 'none',
           contents: [
             {
               type: 'box',
@@ -432,7 +432,7 @@ export default function Home() {
                   weight: 'bold',
                   size: 'sm',
                   color: '#888888',
-                  margin: 'none',
+                  margin: 'md',
                 },
                 {
                   type: 'separator',
@@ -602,7 +602,7 @@ export default function Home() {
                   type: 'box',
                   layout: 'horizontal',
                   margin: 'md',
-                  backgroundColor: payLaterReceipt ? 'rgba(71, 85, 105, 0.08)' : 'rgba(2, 132, 199, 0.08)',
+                  backgroundColor: payLaterReceipt ? '#47556914' : '#0284c714',
                   cornerRadius: 'md',
                   paddingAll: 'md',
                   contents: [
@@ -653,19 +653,7 @@ export default function Home() {
         return;
       }
 
-      // 1. Try sending directly to the active chat context first if available
-      const context = liff.getContext();
-      if (context) {
-        try {
-          await liff.sendMessages([messagePayload]);
-          alert('ส่งการแจ้งเตือนสำเร็จ!');
-          return;
-        } catch (msgErr: any) {
-          console.warn('liff.sendMessages failed, falling back to shareTargetPicker:', msgErr);
-        }
-      }
-
-      // 2. Fallback to shareTargetPicker to let user choose target
+      // 1. Check if shareTargetPicker is available (most reliable for sending Flex messages)
       if (liff.isApiAvailable('shareTargetPicker')) {
         try {
           const pickerResponse = await liff.shareTargetPicker([messagePayload]);
@@ -674,17 +662,29 @@ export default function Home() {
             return;
           }
         } catch (pickerErr: any) {
-          console.error('shareTargetPicker failed:', pickerErr);
+          console.warn('shareTargetPicker failed:', pickerErr);
+        }
+      }
+
+      // 2. Try sending directly to the active chat context if available
+      const context = liff.getContext();
+      if (context && context.type) {
+        try {
+          await liff.sendMessages([messagePayload]);
+          alert('ส่งการแจ้งเตือนสำเร็จ!');
+          return;
+        } catch (msgErr: any) {
+          console.warn('liff.sendMessages failed:', msgErr);
         }
       }
 
       // 3. Last fallback: copy link to clipboard and alert user
       navigator.clipboard.writeText(directLink);
-      alert(`คัดลอกลิงก์สำหรับแชร์เรียบร้อยแล้ว: ${directLink}`);
+      alert(`ไม่สามารถส่ง Flex Message ได้ โปรดแชร์ลิงก์นี้ด้วยตนเอง: ${directLink}`);
     } catch (err) {
-      console.error('Error sharing target picker:', err);
+      console.error('Error sharing message:', err);
       navigator.clipboard.writeText(directLink);
-      alert(`คัดลอกลิงก์สำหรับแชร์เรียบร้อยแล้ว: ${directLink}`);
+      alert(`เกิดข้อผิดพลาด โปรดแชร์ลิงก์นี้ด้วยตนเอง: ${directLink}`);
     }
   };
 
