@@ -346,20 +346,7 @@ export default function Home() {
       contents: [
         {
           type: 'text',
-          text: item.name,
-          size: 'sm',
-          color: '#555555',
-          flex: 4,
-          wrap: true,
-        },
-        {
-          type: 'text',
-          text: `${item.price.toLocaleString()} ฿`,
-          size: 'sm',
-          color: '#111111',
-          align: 'end',
-          weight: 'bold',
-          flex: 2,
+          text: `${item.name} ${item.price.toLocaleString()}฿`,
         },
       ],
     }));
@@ -369,83 +356,50 @@ export default function Home() {
       altText: `📢 เปิดรับออเดอร์: ${name}`,
       contents: {
         type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: creatorName || 'ร้านค้า',
+              align: 'center',
+              size: 'xs',
+            },
+            {
+              type: 'text',
+              text: 'เปิดรับออเดอร์',
+              align: 'center',
+            },
+          ],
+        },
+        hero: {
+          type: 'image',
+          url: (creatorPicture && creatorPicture.startsWith('https')) 
+            ? creatorPicture 
+            : 'https://developers-resource.landpress.line.me/fx/img/01_1_cafe.png',
+          size: 'full',
+          aspectRatio: '20:13',
+          aspectMode: 'cover',
+          action: {
+            type: 'uri',
+            uri: liffLink,
+          },
+        },
         body: {
           type: 'box',
           layout: 'vertical',
-          paddingAll: 'none',
           contents: [
             {
-              type: 'box',
-              layout: 'vertical',
-              backgroundColor: '#0284c7',
-              paddingAll: 'xl',
-              contents: [
-                {
-                  type: 'box',
-                  layout: 'horizontal',
-                  spacing: 'md',
-                  alignItems: 'center',
-                  contents: [
-                    ...(creatorPicture && creatorPicture.startsWith('https') ? [{
-                      type: 'image',
-                      url: creatorPicture,
-                      size: 'xxs',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      cornerRadius: 'xxl',
-                    }] : [{
-                      type: 'text',
-                      text: '👤',
-                      color: '#ffffff',
-                      size: 'sm',
-                      flex: 0,
-                    }]),
-                    {
-                      type: 'text',
-                      text: creatorName ? `เปิดรับออเดอร์จาก คุณ ${creatorName}` : 'เปิดรับออเดอร์แล้วจ้า!',
-                      color: '#ffffff',
-                      weight: 'bold',
-                      size: 'sm',
-                      wrap: true,
-                    }
-                  ]
-                },
-                {
-                  type: 'text',
-                  text: name,
-                  color: '#ffffff',
-                  size: 'xl',
-                  weight: 'bold',
-                  margin: 'sm',
-                  wrap: true,
-                },
-              ],
+              type: 'text',
+              text: name,
+              weight: 'bold',
+              size: 'xl',
             },
             {
               type: 'box',
               layout: 'vertical',
-              paddingAll: 'xl',
-              contents: [
-                {
-                  type: 'text',
-                  text: 'รายการสินค้า',
-                  weight: 'bold',
-                  size: 'sm',
-                  color: '#888888',
-                  margin: 'md',
-                },
-                {
-                  type: 'separator',
-                  margin: 'md',
-                },
-                {
-                  type: 'box',
-                  layout: 'vertical',
-                  margin: 'md',
-                  spacing: 'sm',
-                  contents: flexItems,
-                },
-              ],
+              contents: flexItems,
             },
           ],
         },
@@ -456,15 +410,22 @@ export default function Home() {
           contents: [
             {
               type: 'button',
-              style: 'primary',
-              color: '#0284c7',
+              style: 'link',
+              height: 'sm',
               action: {
                 type: 'uri',
-                label: '🛒 กดสั่งเลยตอนนี้',
+                label: '🛒 สั่งเลยตอนนี้',
                 uri: liffLink,
               },
             },
+            {
+              type: 'box',
+              layout: 'vertical',
+              contents: [],
+              margin: 'sm',
+            },
           ],
+          flex: 0,
         },
       },
     };
