@@ -357,7 +357,7 @@ export default function Home() {
           text: `${item.price.toLocaleString()} ฿`,
           size: 'sm',
           color: '#111111',
-          align: 'right',
+          align: 'end',
           weight: 'bold',
           flex: 2,
         },
@@ -372,6 +372,7 @@ export default function Home() {
         body: {
           type: 'box',
           layout: 'vertical',
+          paddingAll: '0px',
           contents: [
             {
               type: 'box',
@@ -383,21 +384,22 @@ export default function Home() {
                   type: 'box',
                   layout: 'horizontal',
                   spacing: 'md',
+                  alignItems: 'center',
                   contents: [
-                    creatorPicture ? {
+                    ...(creatorPicture ? [{
                       type: 'image',
                       url: creatorPicture,
                       size: 'xxs',
                       aspectRatio: '1:1',
                       aspectMode: 'cover',
                       cornerRadius: 'xxl',
-                    } : {
+                    }] : [{
                       type: 'text',
                       text: '👤',
                       color: '#ffffff',
                       size: 'sm',
                       flex: 0,
-                    },
+                    }]),
                     {
                       type: 'text',
                       text: creatorName ? `เปิดรับออเดอร์จาก คุณ ${creatorName}` : 'เปิดรับออเดอร์แล้วจ้า!',
@@ -463,7 +465,6 @@ export default function Home() {
               },
             },
           ],
-          flex: 0,
         },
       },
     };
@@ -592,7 +593,7 @@ export default function Home() {
                       text: `${totalAmountVal.toLocaleString()} ฿`,
                       weight: 'bold',
                       size: 'md',
-                      align: 'right',
+                      align: 'end',
                       color: '#0284c7',
                     },
                   ],
