@@ -365,6 +365,7 @@ export default function Home() {
               text: creatorName || 'ร้านค้า',
               align: 'center',
               size: 'xs',
+              color: '#38bdf8',
             },
             {
               type: 'text',
@@ -622,8 +623,23 @@ export default function Home() {
         return;
       }
 
-      // 1. Check if shareTargetPicker is available
-      console.log('Checking shareTargetPicker availability...');
+      // 1. Try sending directly to the active chat context (Reply/Send)
+      const context = liff.getContext();
+      console.log('LIFF Context:', context);
+      if (context && context.type && ['utou', 'room', 'group', 'external'].includes(context.type)) {
+        console.log('Attempting liff.sendMessages...');
+        try {
+          await liff.sendMessages([messagePayload]);
+          console.log('liff.sendMessages success');
+          alert('ส่งการแจ้งเตือนสำเร็จ!');
+          return;
+        } catch (msgErr: any) {
+          console.error('liff.sendMessages failed:', msgErr);
+        }
+      }
+
+      // 2. Fallback to shareTargetPicker if sendMessages fails or context is not available
+      console.log('Checking shareTargetPicker availability as fallback...');
       if (liff.isApiAvailable('shareTargetPicker')) {
         console.log('shareTargetPicker is available, opening...');
         try {
@@ -640,21 +656,6 @@ export default function Home() {
         }
       } else {
         console.log('shareTargetPicker is NOT available');
-      }
-
-      // 2. Try sending directly to the active chat context
-      const context = liff.getContext();
-      console.log('LIFF Context:', context);
-      if (context && context.type && ['utou', 'room', 'group', 'external'].includes(context.type)) {
-        console.log('Attempting liff.sendMessages...');
-        try {
-          await liff.sendMessages([messagePayload]);
-          console.log('liff.sendMessages success');
-          alert('ส่งการแจ้งเตือนสำเร็จ!');
-          return;
-        } catch (msgErr: any) {
-          console.error('liff.sendMessages failed:', msgErr);
-        }
       }
 
       // 3. Last fallback: copy link to clipboard
