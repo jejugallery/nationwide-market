@@ -631,7 +631,7 @@ export default function Home() {
         try {
           await liff.sendMessages([messagePayload]);
           console.log('liff.sendMessages success');
-          alert('ส่งการแจ้งเตือนสำเร็จ!');
+          liff.closeWindow();
           return;
         } catch (msgErr: any) {
           console.error('liff.sendMessages failed:', msgErr);
@@ -647,6 +647,7 @@ export default function Home() {
           console.log('shareTargetPicker response:', pickerResponse);
           if (pickerResponse) {
             // Success
+            liff.closeWindow();
             return;
           } else {
             console.log('Target picker was closed without sharing');
