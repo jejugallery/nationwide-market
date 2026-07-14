@@ -14,6 +14,7 @@ export async function GET() {
         creator_name VARCHAR(255),
         creator_picture TEXT,
         creator_user_id VARCHAR(255),
+        is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `;
@@ -22,6 +23,7 @@ export async function GET() {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_name VARCHAR(255)`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_picture TEXT`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_user_id VARCHAR(255)`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`;
 
     // 2. Create order_items table
     await sql`

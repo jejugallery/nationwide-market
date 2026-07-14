@@ -19,6 +19,7 @@ interface OrderDetails {
   creatorName?: string;
   creatorPicture?: string;
   creatorUserId?: string;
+  isActive?: boolean;
   items: {
     id: string;
     name: string;
@@ -67,6 +68,7 @@ export default function Home() {
   const [isCopied, setIsCopied] = useState(false);
   const [payLater, setPayLater] = useState(false);
   const [activeTab, setActiveTab] = useState<'order' | 'dashboard'>('order');
+  const [creatorOrders, setCreatorOrders] = useState<any[]>([]);
 
   // Process States
   const [loading, setLoading] = useState(false);
@@ -133,7 +135,8 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/order/${orderId}`);
+        const userIdParam = liffProfile?.userId ? `?userId=${liffProfile.userId}` : '';
+        const res = await fetch(`/api/order/${orderId}${userIdParam}`);
         const data = await res.json();
         if (data.success) {
           setOrderDetails(data.order);
@@ -155,7 +158,91 @@ export default function Home() {
     };
 
     fetchOrderDetails();
-  }, [orderId]);
+  }, [orderId, liffProfile]);
+
+  // Fetch orders created by this user when on setting-up screen
+  useEffect(() => {
+    if (orderId || !liffProfile?.userId) return;
+
+    const fetchCreatorOrders = async () => {
+      try {
+        const res = await fetch(`/api/order/creator?creatorUserId=${liffProfile.userId}`);
+        const data = await res.json();
+        if (data.success) {
+          setCreatorOrders(data.orders);
+        }
+      } catch (err) {
+        console.error('Failed to fetch creator orders:', err);
+      }
+    };
+
+    fetchCreatorOrders();
+  }, [orderId, liffProfile]);
+
+  // Toggle order active status
+  const handleToggleOrderStatus = async (id: string, currentStatus: boolean, isDetailPage = false) => {
+    if (!liffProfile?.userId) return;
+    try {
+      const response = await fetch(`/api/order/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: !currentStatus,
+          userId: liffProfile.userId
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        if (isDetailPage) {
+          setOrderDetails((prev) => prev ? { ...prev, isActive: data.isActive } : null);
+        } else {
+          setCreatorOrders((prev) => 
+            prev.map((o) => o.id === id ? { ...o, isActive: data.isActive } : o)
+          );
+        }
+      } else {
+        alert(data.error || 'Failed to update order status.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update status.');
+    }
+  };
+
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    alert('คัดลอกลิงก์เรียบร้อยแล้ว!');
+  };
+
+  const handleDeleteOrder = async (id: string) => {
+    if (!liffProfile?.userId) return;
+    if (!confirm('คุณต้องการลบแผงขายของนี้ใช่หรือไม่? ข้อมูลคำสั่งซื้อทั้งหมดจะถูกลบไปด้วยอย่างถาวร')) return;
+    
+    try {
+      const response = await fetch(`/api/order/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: liffProfile.userId
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCreatorOrders((prev) => prev.filter((o) => o.id !== id));
+        alert('ลบแผงขายของเรียบร้อยแล้ว!');
+        if (orderId === id) {
+          setOrderId(null);
+          setActiveTab('order');
+          window.history.pushState(null, '', window.location.pathname);
+        }
+      } else {
+        alert(data.error || 'Failed to delete order.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete order.');
+    }
+  };
 
   // Calculate Order Total Price
   const calculateTotal = () => {
@@ -601,6 +688,7 @@ export default function Home() {
           items: cleanItems,
           creatorName: liffProfile?.displayName || null,
           creatorPicture: liffProfile?.pictureUrl || null,
+          creatorUserId: liffProfile?.userId || null,
         }),
       });
 
@@ -616,6 +704,19 @@ export default function Home() {
         setCreatedOrderLink(finalLink);
         setSuccess(true);
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+        // Refresh existing orders list
+        if (liffProfile?.userId) {
+          try {
+            const res = await fetch(`/api/order/creator?creatorUserId=${liffProfile.userId}`);
+            const data = await res.json();
+            if (data.success) {
+              setCreatorOrders(data.orders);
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        }
 
         // Build Flex Message and trigger share
         const flexPayload = getCreateFlexMessage(
@@ -834,7 +935,6 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      {/* HEADER SECTION */}
       <header className={styles.header}>
         <h1 className={styles.title}>Nationwide Market</h1>
         <span className={styles.subtitle}>ระบบตั้งแผงขายของบริษัทเนชั่นไวด์</span>
@@ -846,7 +946,6 @@ export default function Home() {
         )}
       </header>
 
-      {/* ERROR ALERT DISPLAY */}
       {error && (
         <div className={`${styles.alert} ${styles.alertError}`}>
           <span className={styles.alertTitle}>⚠️ เกิดข้อผิดพลาด</span>
@@ -854,7 +953,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* LOADING OVERLAY SCREEN */}
       {loading && loadingStep !== '' && (
         <div className={styles.card} style={{ alignItems: 'center', padding: '36px 20px', gap: '20px' }}>
           <div className={styles.spinner} style={{ width: '36px', height: '36px' }}></div>
@@ -865,307 +963,312 @@ export default function Home() {
         </div>
       )}
 
-      {/* MAIN VIEW */}
-      {/* 1. ORDER PLACEMENT VIEW (When orderId query is set) */}
       {orderId ? (
         orderDetails ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Creator and Buyer Profiles Card */}
-            <div className={styles.card} style={{ gap: '16px', padding: '16px 20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                {/* Creator Profile */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {orderDetails.creatorPicture ? (
-                    <img src={orderDetails.creatorPicture} alt="Creator" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-blue)' }} />
-                  ) : (
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ผู้ตั้งแผง</span>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{orderDetails.creatorName || 'ผู้ตั้งแผง'}</span>
-                  </div>
-                </div>
-
-                {/* Buyer Profile */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ผู้สั่งซื้อ</span>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{liffProfile?.displayName || 'ลูกค้า'}</span>
-                  </div>
-                  {liffProfile?.pictureUrl ? (
-                    <img src={liffProfile.pictureUrl} alt="Buyer" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-blue)' }} />
-                  ) : (
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Tab Selector (Only show if current user is creator) */}
-            {liffProfile?.userId === orderDetails.creatorUserId && (
-              <div style={{ display: 'flex', gap: '8px', background: '#f1f5f9', padding: '4px', borderRadius: 'var(--border-radius-md)', marginBottom: '8px' }}>
+            {!orderDetails.isActive && liffProfile?.userId !== orderDetails.creatorUserId ? (
+              <div className={styles.card} style={{ textAlign: 'center', padding: '40px 20px', gap: '12px' }}>
+                <span style={{ fontSize: '48px' }}>🕒</span>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>ออเดอร์นี้ปิดรับคิวแล้ว</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  ผู้ตั้งแผงได้ทำการปิดรับคิวคำสั่งซื้อสินค้าสำหรับแผงนี้เรียบร้อยแล้ว
+                </p>
                 <button 
-                  type="button"
-                  onClick={() => setActiveTab('order')}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: activeTab === 'order' ? '#ffffff' : 'transparent',
-                    color: activeTab === 'order' ? '#1e3a8a' : 'var(--text-secondary)',
-                    boxShadow: activeTab === 'order' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
-                    transition: 'var(--transition-smooth)'
+                  type="button" 
+                  onClick={() => {
+                    setOrderId(null);
+                    setActiveTab('order');
+                    window.history.pushState(null, '', window.location.pathname);
                   }}
+                  className={styles.btn}
                 >
-                  🛒 สั่งสินค้า
+                  ➕ สร้างแผงขายของใหม่
                 </button>
-                <button 
-                  type="button"
-                  onClick={() => setActiveTab('dashboard')}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: activeTab === 'dashboard' ? '#ffffff' : 'transparent',
-                    color: activeTab === 'dashboard' ? '#1e3a8a' : 'var(--text-secondary)',
-                    boxShadow: activeTab === 'dashboard' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
-                    transition: 'var(--transition-smooth)'
-                  }}
-                >
-                  📋 ดูคำสั่งซื้อ ({orderDetails.buyerOrders?.length || 0})
-                </button>
-              </div>
-            )}
-
-            {activeTab === 'dashboard' && liffProfile?.userId === orderDetails.creatorUserId ? (
-              /* Creator Dashboard View */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h3 className={styles.sectionTitle}>รายการคำสั่งซื้อลูกค้า</h3>
-                
-                {(!orderDetails.buyerOrders || orderDetails.buyerOrders.length === 0) ? (
-                  <div className={styles.card} style={{ textAlign: 'center', padding: '32px 16px' }}>
-                    <span style={{ fontSize: '24px' }}>📭</span>
-                    <p style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>ยังไม่มีใครสั่งซื้อสินค้าในขณะนี้</p>
-                  </div>
-                ) : (
-                  orderDetails.buyerOrders.map((bo) => (
-                    <div key={bo.id} className={styles.card} style={{ padding: '16px 20px', gap: '12px' }}>
-                      {/* Buyer Profile Header */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {bo.buyerPicture ? (
-                          <img src={bo.buyerPicture} alt={bo.buyerName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
-                        )}
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 800 }}>{bo.buyerName}</span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{new Date(bo.createdAt).toLocaleString('th-TH')}</span>
-                        </div>
-
-                        {/* Status Badge */}
-                        <div style={{ marginLeft: 'auto' }}>
-                          {bo.payLater ? (
-                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>
-                              🕒 จ่ายทีหลัง
-                            </span>
-                          ) : bo.verified ? (
-                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#f0f9ff', color: '#0369a1', border: '1px solid #e2e8f0' }}>
-                              ✅ ชำระแล้ว
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }}>
-                              ⚠️ รอยืนยัน
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Purchased Items Table */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        {bo.items.map((item, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                            <span style={{ color: '#475569' }}>{item.name} x{item.quantity}</span>
-                            <span style={{ fontWeight: 700 }}>{(item.price * item.quantity).toLocaleString()} ฿</span>
-                          </div>
-                        ))}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #e2e8f0', paddingTop: '6px', marginTop: '2px', fontSize: '13px', fontWeight: 800 }}>
-                          <span>ยอดรวม</span>
-                          <span style={{ color: '#0369a1' }}>{bo.totalAmount.toLocaleString()} ฿</span>
-                        </div>
-                      </div>
-
-                      {/* Slip View Link */}
-                      {!bo.payLater && bo.slipUrl && bo.slipUrl !== 'PAY_LATER' && (
-                        <a 
-                          href={bo.slipUrl} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px',
-                            textDecoration: 'none',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            color: '#0284c7',
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            background: '#f0f9ff',
-                            border: '1px solid rgba(2, 132, 199, 0.15)',
-                            textAlign: 'center',
-                            cursor: 'pointer',
-                            transition: 'var(--transition-smooth)'
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.background = '#e0f2fe'; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = '#f0f9ff'; }}
-                        >
-                          📄 เปิดดูภาพสลิป
-                        </a>
-                      )}
-                    </div>
-                  ))
-                )}
               </div>
             ) : (
-              /* Regular Order Placement View */
               <>
-                {/* Items Choice Card */}
-                <div className={styles.card}>
-                  <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {orderDetails.items.map((item) => (
-                      <div key={item.id} className={styles.orderItemRow}>
-                        <div className={styles.orderItemInfo}>
-                          <span className={styles.orderItemName}>{item.name}</span>
-                          <span className={styles.orderItemPrice}>{item.price.toLocaleString()} ฿</span>
-                        </div>
-                        <div className={styles.counter}>
-                          <button 
-                            type="button" 
-                            onClick={() => adjustQuantity(item.id, 'dec')} 
-                            className={styles.counterBtn}
-                          >
-                            -
-                          </button>
-                          <span className={styles.counterVal}>{quantities[item.id] || 0}</span>
-                          <button 
-                            type="button" 
-                            onClick={() => adjustQuantity(item.id, 'inc')} 
-                            className={styles.counterBtn}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className={styles.summaryTotal}>
-                    <span className={styles.totalLabel}>ราคารวมทั้งหมด</span>
-                    <span className={styles.totalValue}>{calculateTotal().toLocaleString()} ฿</span>
-                  </div>
-                </div>
-
-                {/* Merchant Payment Details Card */}
-                <div className={styles.card}>
-                  <h3 className={styles.sectionTitle}>รายละเอียดการชำระเงิน</h3>
-                  
-                  <div className={styles.billingPanel}>
-                    <div className={styles.billingDetail}>
-                      <span className={styles.label}>ธนาคาร</span>
-                      <span className={styles.billingVal} style={{ color: 'var(--primary-light)', fontSize: '14px' }}>{orderDetails.bankName}</span>
-                    </div>
-                    <div className={styles.billingDetail}>
-                      <span className={styles.label}>ชื่อบัญชี</span>
-                      <span className={styles.billingVal} style={{ fontSize: '14px' }}>{orderDetails.accountName}</span>
-                    </div>
-                    <div className={styles.billingDetail} style={{ borderTop: '1px solid rgba(16, 185, 129, 0.08)', paddingTop: '10px', marginTop: '4px' }}>
-                      <div className={styles.billingInfo}>
-                        <span className={styles.label}>เลขที่บัญชี</span>
-                        <span className={styles.billingVal}>{orderDetails.accountNumber}</span>
-                      </div>
+                {liffProfile?.userId === orderDetails.creatorUserId && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', background: '#f1f5f9', padding: '4px', borderRadius: 'var(--border-radius-md)' }}>
                       <button 
-                        type="button" 
-                        onClick={() => handleCopyAccountNumber(orderDetails.accountNumber)}
-                        className={`${styles.copyBadge} ${isCopied ? styles.copyBadgeActive : ''}`}
+                        type="button"
+                        onClick={() => setActiveTab('order')}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: activeTab === 'order' ? '#ffffff' : 'transparent',
+                          color: activeTab === 'order' ? '#1e3a8a' : 'var(--text-secondary)',
+                          boxShadow: activeTab === 'order' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
+                          transition: 'var(--transition-smooth)'
+                        }}
                       >
-                        {isCopied ? '✓ คัดลอกแล้ว' : '❐ คัดลอกเลขบัญชี'}
+                        🛒 สั่งสินค้า
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setActiveTab('dashboard')}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: activeTab === 'dashboard' ? '#ffffff' : 'transparent',
+                          color: activeTab === 'dashboard' ? '#1e3a8a' : 'var(--text-secondary)',
+                          boxShadow: activeTab === 'dashboard' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
+                          transition: 'var(--transition-smooth)'
+                        }}
+                      >
+                        📋 ดูคำสั่งซื้อ ({orderDetails.buyerOrders?.length || 0})
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fafc', borderRadius: 'var(--border-radius-md)', border: '1px solid #cbd5e1' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800 }}>สถานะการรับคิว</span>
+                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>{orderDetails.isActive ? 'เปิดรับออเดอร์จากลูกค้าปกติ' : 'ปิดรับคิวสั่งซื้อแล้ว ลูกค้าจะเข้าสั่งไม่ได้'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleOrderStatus(orderDetails.id, !!orderDetails.isActive, true)}
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '4px 10px',
+                          borderRadius: '50px',
+                          border: '1px solid',
+                          borderColor: orderDetails.isActive ? '#ef4444' : '#0284c7',
+                          background: orderDetails.isActive ? '#fef2f2' : '#f0f9ff',
+                          color: orderDetails.isActive ? '#ef4444' : '#0284c7',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {orderDetails.isActive ? '⛔ ปิดรับออเดอร์' : '✅ เปิดรับออเดอร์'}
                       </button>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Slip Upload & Verification Card */}
-                <div className={styles.card}>
-                  <h3 className={styles.sectionTitle}>แนบสลิปเพื่อยืนยันยอดเงิน</h3>
-
-                  {/* Pay Later Checkbox */}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--border-radius-md)', border: '1px solid #e2e8f0', marginBottom: '8px' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={payLater} 
-                      onChange={(e) => {
-                        setPayLater(e.target.checked);
-                        if (e.target.checked) {
-                          setSlipBase64(null);
-                          setSlipMimeType('');
-                        }
-                      }} 
-                      style={{ width: '16px', height: '16px', accentColor: 'var(--primary-blue)', cursor: 'pointer' }}
-                    />
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>🕒 สั่งก่อนจ่ายทีหลัง (ค้างชำระ)</span>
-                  </label>
-
-                  {!payLater && (
-                    slipBase64 ? (
-                      <div className={styles.previewContainer}>
-                        <img src={slipBase64} alt="Slip Preview" className={styles.previewImage} />
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            setSlipBase64(null);
-                            setSlipMimeType('');
-                          }} 
-                          className={styles.removePreview}
-                        >
-                          ✕
-                        </button>
+                {activeTab === 'dashboard' && liffProfile?.userId === orderDetails.creatorUserId ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <h3 className={styles.sectionTitle}>รายการคำสั่งซื้อลูกค้า</h3>
+                    
+                    {(!orderDetails.buyerOrders || orderDetails.buyerOrders.length === 0) ? (
+                      <div className={styles.card} style={{ textAlign: 'center', padding: '32px 16px' }}>
+                        <span style={{ fontSize: '24px' }}>📭</span>
+                        <p style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>ยังไม่มีใครสั่งซื้อสินค้าในขณะนี้</p>
                       </div>
                     ) : (
-                      <label className={styles.uploadZone}>
-                        <div className={styles.uploadIcon}>⬆</div>
-                        <span className={styles.uploadText}>เลือกไฟล์ภาพสลิปโอนเงิน</span>
-                        <span className={styles.uploadSubtext}>รองรับ JPG, PNG และ JPEG เท่านั้น</span>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleFileChange} 
-                          className={styles.hiddenInput} 
-                        />
-                      </label>
-                    )
-                  )}
+                      orderDetails.buyerOrders.map((bo) => (
+                        <div key={bo.id} className={styles.card} style={{ padding: '16px 20px', gap: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {bo.buyerPicture ? (
+                              <img src={bo.buyerPicture} alt={bo.buyerName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
+                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 800 }}>{bo.buyerName}</span>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{new Date(bo.createdAt).toLocaleString('th-TH')}</span>
+                            </div>
 
-                  <button 
-                    type="button" 
-                    onClick={handleSubmitPlaceOrder} 
-                    disabled={loading || calculateTotal() === 0 || (!payLater && !slipBase64)} 
-                    className={styles.btn}
-                    style={{ marginTop: '10px' }}
-                  >
-                    {loading ? <div className={styles.spinner}></div> : '🛒 ยืนยันสั่งสินค้า'}
-                  </button>
-                </div>
+                            <div style={{ marginLeft: 'auto' }}>
+                              {bo.payLater ? (
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>
+                                  🕒 จ่ายทีหลัง
+                                </span>
+                              ) : bo.verified ? (
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#f0f9ff', color: '#0369a1', border: '1px solid #cbd5e1' }}>
+                                  ✅ ชำระแล้ว
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }}>
+                                  ⚠️ รอยืนยัน
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            {bo.items.map((item, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                <span style={{ color: '#475569' }}>{item.name} x{item.quantity}</span>
+                                <span style={{ fontWeight: 700 }}>{(item.price * item.quantity).toLocaleString()} ฿</span>
+                              </div>
+                            ))}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #e2e8f0', paddingTop: '6px', marginTop: '2px', fontSize: '13px', fontWeight: 800 }}>
+                              <span>ยอดรวม</span>
+                              <span style={{ color: '#0369a1' }}>{bo.totalAmount.toLocaleString()} ฿</span>
+                            </div>
+                          </div>
+
+                          {!bo.payLater && bo.slipUrl && bo.slipUrl !== 'PAY_LATER' && (
+                            <a 
+                              href={bo.slipUrl} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                textDecoration: 'none',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: '#0284c7',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                background: '#f0f9ff',
+                                border: '1px solid rgba(2, 132, 199, 0.15)',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                transition: 'var(--transition-smooth)'
+                              }}
+                              onMouseOver={(e) => { e.currentTarget.style.background = '#e0f2fe'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.background = '#f0f9ff'; }}
+                            >
+                              📄 เปิดดูภาพสลิป
+                            </a>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.card}>
+                      <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {orderDetails.items.map((item) => (
+                          <div key={item.id} className={styles.orderItemRow}>
+                            <div className={styles.orderItemInfo}>
+                              <span className={styles.orderItemName}>{item.name}</span>
+                              <span className={styles.orderItemPrice}>{item.price.toLocaleString()} ฿</span>
+                            </div>
+                            <div className={styles.counter}>
+                              <button 
+                                type="button" 
+                                onClick={() => adjustQuantity(item.id, 'dec')} 
+                                className={styles.counterBtn}
+                              >
+                                -
+                              </button>
+                              <span className={styles.counterVal}>{quantities[item.id] || 0}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => adjustQuantity(item.id, 'inc')} 
+                                className={styles.counterBtn}
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className={styles.summaryTotal}>
+                        <span className={styles.totalLabel}>ราคารวมทั้งหมด</span>
+                        <span className={styles.totalValue}>{calculateTotal().toLocaleString()} ฿</span>
+                      </div>
+                    </div>
+
+                    <div className={styles.card}>
+                      <h3 className={styles.sectionTitle}>รายละเอียดการชำระเงิน</h3>
+                      
+                      <div className={styles.billingPanel}>
+                        <div className={styles.billingDetail}>
+                          <span className={styles.label}>ธนาคาร</span>
+                          <span className={styles.billingVal} style={{ color: 'var(--primary-light)', fontSize: '14px' }}>{orderDetails.bankName}</span>
+                        </div>
+                        <div className={styles.billingDetail}>
+                          <span className={styles.label}>ชื่อบัญชี</span>
+                          <span className={styles.billingVal} style={{ fontSize: '14px' }}>{orderDetails.accountName}</span>
+                        </div>
+                        <div className={styles.billingDetail} style={{ borderTop: '1px solid rgba(16, 185, 129, 0.08)', paddingTop: '10px', marginTop: '4px' }}>
+                          <div className={styles.billingInfo}>
+                            <span className={styles.label}>เลขที่บัญชี</span>
+                            <span className={styles.billingVal}>{orderDetails.accountNumber}</span>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={() => handleCopyAccountNumber(orderDetails.accountNumber)}
+                            className={`${styles.copyBadge} ${isCopied ? styles.copyBadgeActive : ''}`}
+                          >
+                            {isCopied ? '✓ คัดลอกแล้ว' : '❐ คัดลอกเลขบัญชี'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.card}>
+                      <h3 className={styles.sectionTitle}>แนบสลิปเพื่อยืนยันยอดเงิน</h3>
+
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--border-radius-md)', border: '1px solid #e2e8f0', marginBottom: '8px' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={payLater} 
+                          onChange={(e) => {
+                            setPayLater(e.target.checked);
+                            if (e.target.checked) {
+                              setSlipBase64(null);
+                              setSlipMimeType('');
+                            }
+                          }} 
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--primary-blue)', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>🕒 สั่งก่อนจ่ายทีหลัง (ค้างชำระ)</span>
+                      </label>
+
+                      {!payLater && (
+                        slipBase64 ? (
+                          <div className={styles.previewContainer}>
+                            <img src={slipBase64} alt="Slip Preview" className={styles.previewImage} />
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                setSlipBase64(null);
+                                setSlipMimeType('');
+                              }} 
+                              className={styles.removePreview}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <label className={styles.uploadZone}>
+                            <div className={styles.uploadIcon}>⬆</div>
+                            <span className={styles.uploadText}>เลือกไฟล์ภาพสลิปโอนเงิน</span>
+                            <span className={styles.uploadSubtext}>รองรับ JPG, PNG และ JPEG เท่านั้น</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={handleFileChange} 
+                              className={styles.hiddenInput} 
+                            />
+                          </label>
+                        )
+                      )}
+
+                      <button 
+                        type="button" 
+                        onClick={handleSubmitPlaceOrder} 
+                        disabled={loading || calculateTotal() === 0 || (!payLater && !slipBase64)} 
+                        className={styles.btn}
+                        style={{ marginTop: '10px' }}
+                      >
+                        {loading ? <div className={styles.spinner}></div> : '🛒 ยืนยันสั่งสินค้า'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -1179,9 +1282,7 @@ export default function Home() {
           )
         )
       ) : (
-        /* 2. CREATE ORDER VIEW (Default screen) */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Creator Profile Card */}
           <div className={styles.card} style={{ gap: '16px', padding: '16px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {liffProfile?.pictureUrl ? (
@@ -1195,6 +1296,95 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          {creatorOrders.length > 0 && (
+            <div className={styles.card} style={{ gap: '16px' }}>
+              <h3 className={styles.sectionTitle}>แผงขายของที่คุณเปิดไว้</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {creatorOrders.map((co) => (
+                  <div key={co.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: '13px', color: '#1e3a8a' }}>{co.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>({co.buyerCount} คำสั่งซื้อ)</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '8px', background: co.isActive ? '#f0f9ff' : '#f1f5f9', color: co.isActive ? '#0284c7' : '#64748b', border: '1px solid #cbd5e1' }}>
+                          {co.isActive ? '🟢 เปิดอยู่' : '⚪ ปิดคิว'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                      <button 
+                        type="button"
+                        onClick={() => handleCopyLink(`https://liff.line.me/${process.env.NEXT_PUBLIC_LIFF_ID || ''}?orderId=${co.id}`)}
+                        className={styles.copyBadge}
+                        style={{ padding: '4px 10px', fontSize: '10px' }}
+                      >
+                        ❐ คัดลอกลิงก์แชร์
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleOrderStatus(co.id, co.isActive)}
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '4px 10px',
+                          borderRadius: '50px',
+                          border: '1px solid',
+                          borderColor: co.isActive ? '#ef4444' : '#0284c7',
+                          background: co.isActive ? '#fef2f2' : '#f0f9ff',
+                          color: co.isActive ? '#ef4444' : '#0284c7',
+                          cursor: 'pointer',
+                          marginLeft: 'auto'
+                        }}
+                      >
+                        {co.isActive ? '⛔ ปิดรับออเดอร์' : '✅ เปิดรับออเดอร์'}
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOrderId(co.id);
+                          setActiveTab('dashboard');
+                          window.history.pushState(null, '', `?orderId=${co.id}`);
+                        }}
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '4px 10px',
+                          borderRadius: '50px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🔍 ดูคำสั่งซื้อ
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOrder(co.id)}
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '4px 10px',
+                          borderRadius: '50px',
+                          border: '1px solid #fee2e2',
+                          background: '#fef2f2',
+                          color: '#ef4444',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🗑️ ลบ
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmitCreateOrder} className={styles.card}>
             <h3 className={styles.sectionTitle}>ออเดอร์</h3>

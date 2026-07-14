@@ -39,6 +39,13 @@ export async function POST(
 
     const order = orderResult[0];
 
+    if (!order.is_active) {
+      return NextResponse.json(
+        { success: false, error: 'ออเดอร์นี้ปิดรับคิวสั่งซื้อเรียบร้อยแล้ว' },
+        { status: 400 }
+      );
+    }
+
     // 2. Fetch order items to calculate correct total price server-side
     const dbItemsResult = await sql`
       SELECT id, price FROM order_items WHERE order_id = ${orderId}

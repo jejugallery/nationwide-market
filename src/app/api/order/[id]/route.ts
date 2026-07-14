@@ -83,6 +83,7 @@ export async function GET(
         creatorName: order.creator_name,
         creatorPicture: order.creator_picture,
         creatorUserId: order.creator_user_id,
+        isActive: order.is_active,
         createdAt: order.created_at,
         items,
         buyerOrders
@@ -90,6 +91,80 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Fetch order API error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { isActive, userId } = body;
+
+    if (userId === undefined || isActive === undefined) {
+      return NextResponse.json({ success: false, error: 'Missing parameters.' }, { status: 400 });
+    }
+
+    const orderQuery = await sql`
+      SELECT creator_user_id FROM orders WHERE id = ${id}
+    `;
+
+    if (orderQuery.length === 0) {
+      return NextResponse.json({ success: false, error: 'Order not found.' }, { status: 404 });
+    }
+
+    if (orderQuery[0].creator_user_id !== userId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 403 });
+    }
+
+    await sql`
+      UPDATE orders
+      SET is_active = ${isActive}
+      WHERE id = ${id}
+    `;
+
+    return NextResponse.json({ success: true, isActive });
+  } catch (error: any) {
+    console.error('Toggle order status API error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { userId } = body;
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Missing userId.' }, { status: 400 });
+    }
+
+    const orderQuery = await sql`
+      SELECT creator_user_id FROM orders WHERE id = ${id}
+    `;
+
+    if (orderQuery.length === 0) {
+      return NextResponse.json({ success: false, error: 'Order not found.' }, { status: 404 });
+    }
+
+    if (orderQuery[0].creator_user_id !== userId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 403 });
+    }
+
+    await sql`
+      DELETE FROM orders WHERE id = ${id}
+    `;
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Delete order API error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
