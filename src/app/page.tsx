@@ -16,6 +16,7 @@ interface OrderDetails {
   accountName: string;
   bankName: string;
   accountNumber: string;
+  promoImageUrl?: string;
   creatorName?: string;
   creatorPicture?: string;
   creatorUserId?: string;
@@ -59,6 +60,7 @@ export default function Home() {
   const [bankName, setBankName] = useState('KBANK');
   const [customBankName, setCustomBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [promoImageBase64, setPromoImageBase64] = useState<string | null>(null);
   const [items, setItems] = useState<OrderItem[]>([{ name: '', price: 0 }]);
 
   // View state (Place Order)
@@ -338,7 +340,8 @@ export default function Home() {
     orderItems: OrderItem[], 
     liffLink: string,
     creatorName?: string,
-    creatorPicture?: string
+    creatorPicture?: string,
+    promoImageUrl?: string
   ) => {
     const flexItems = orderItems.map((item) => ({
       type: 'box',
@@ -376,7 +379,9 @@ export default function Home() {
         },
         hero: {
           type: 'image',
-          url: (creatorPicture && creatorPicture.startsWith('https')) 
+          url: (promoImageUrl && promoImageUrl.startsWith('https')) 
+            ? promoImageUrl
+            : (creatorPicture && creatorPicture.startsWith('https')) 
             ? creatorPicture 
             : 'https://developers-resource.landpress.line.me/fx/img/01_1_cafe.png',
           size: 'full',
@@ -697,6 +702,21 @@ export default function Home() {
     }
 
     try {
+      let promoImageUrl = '';
+      if (promoImageBase64) {
+        setLoadingStep('กำลังอัปโหลดรูปโปรโมท...');
+        const imgbbResponse = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: promoImageBase64 }),
+        });
+        if (imgbbResponse.ok) {
+          const imgData = await imgbbResponse.json();
+          promoImageUrl = imgData.url;
+        }
+      }
+
+      setLoadingStep('กำลังบันทึกข้อมูลแผงขายของ...');
       const response = await fetch('/api/order/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -705,6 +725,7 @@ export default function Home() {
           accountName,
           bankName: bankFinal,
           accountNumber,
+          promoImageUrl,
           items: cleanItems,
           creatorName: liffProfile?.displayName || null,
           creatorPicture: liffProfile?.pictureUrl || null,
@@ -744,7 +765,8 @@ export default function Home() {
           cleanItems, 
           finalLink, 
           liffProfile?.displayName, 
-          liffProfile?.pictureUrl
+          liffProfile?.pictureUrl || undefined,
+          promoImageUrl || undefined
         );
         await shareMessage(flexPayload, finalLink);
       } else {
@@ -1158,8 +1180,18 @@ export default function Home() {
                       </div>
                     )}
 
-                    <div className={styles.card}>
-                      <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
+                    <div className={styles.card} style={{ padding: '0', overflow: 'hidden' }}>
+                      {orderDetails.promoImageUrl && (
+                        <div style={{ width: '100%', aspectRatio: '20/13', overflow: 'hidden', borderBottom: '1px solid #e2e8f0' }}>
+                          <img 
+                            src={orderDetails.promoImageUrl} 
+                            alt="Promo" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
+                        </div>
+                      )}
+                      <div style={{ padding: '20px' }}>
+                        <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
                       
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         {orderDetails.items.map((item) => (
@@ -1188,7 +1220,9 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
+                    </div>
 
+                    <div className={styles.card}>
                       <div className={styles.summaryTotal}>
                         <span className={styles.totalLabel}>ราคารวมทั้งหมด</span>
                         <span className={styles.totalValue}>{calculateTotal().toLocaleString()} ฿</span>

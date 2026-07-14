@@ -80,6 +80,7 @@ export async function GET(
         accountName: order.account_name,
         bankName: order.bank_name,
         accountNumber: order.account_number,
+        promoImageUrl: order.promo_image_url,
         creatorName: order.creator_name,
         creatorPicture: order.creator_picture,
         creatorUserId: order.creator_user_id,
