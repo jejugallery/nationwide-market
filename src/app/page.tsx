@@ -1011,7 +1011,7 @@ export default function Home() {
             className={styles.btn} 
             style={{ marginTop: '12px' }}
           >
-            {loading ? <div className={styles.spinner}></div> : '📢 เปิดออเดอร์และแชร์ลงห้องแชท'}
+            {loading ? <div className={styles.spinner}></div> : '📢 ตั้งแผงและแชร์ลงห้องแชท'}
           </button>
         </form>
       )}
