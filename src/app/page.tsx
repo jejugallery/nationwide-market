@@ -363,10 +363,12 @@ export default function Home() {
   // Create Flex Message for Order Placement Receipt
   const getReceiptFlexMessage = (
     buyerName: string,
+    buyerPicture: string | null,
     orderNameVal: string,
     itemsBought: { name: string; quantity: number }[],
     totalAmountVal: number,
-    payLaterReceipt?: boolean
+    payLaterReceipt?: boolean,
+    liffLink?: string
   ) => {
     const flexItems = itemsBought.map((item) => ({
       type: 'box',
@@ -400,20 +402,41 @@ export default function Home() {
               contents: [
                 {
                   type: 'text',
-                  text: '✅ สั่งสินค้าเรียบร้อย!',
+                  text: '🛒 มีคำสั่งซื้อเข้ามาใหม่!',
                   color: '#38bdf8',
                   weight: 'bold',
                   size: 'xs',
                 },
                 {
-                  type: 'text',
-                  text: buyerName,
-                  color: '#ffffff',
-                  size: 'xl',
-                  weight: 'bold',
-                  margin: 'sm',
-                  wrap: true,
-                },
+                  type: 'box',
+                  layout: 'horizontal',
+                  margin: 'md',
+                  spacing: 'md',
+                  contents: [
+                    buyerPicture ? {
+                      type: 'image',
+                      url: buyerPicture,
+                      size: 'xxs',
+                      aspectRatio: '1:1',
+                      aspectMode: 'cover',
+                      cornerRadius: 'xxl',
+                    } : {
+                      type: 'text',
+                      text: '👤',
+                      color: '#ffffff',
+                      size: 'sm',
+                      flex: 0,
+                    },
+                    {
+                      type: 'text',
+                      text: `จาก คุณ ${buyerName}`,
+                      color: '#ffffff',
+                      size: 'md',
+                      weight: 'bold',
+                      wrap: true,
+                    }
+                  ]
+                }
               ],
             },
             {
@@ -486,6 +509,24 @@ export default function Home() {
               ],
             },
           ],
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              style: 'primary',
+              color: '#1e3a8a',
+              action: {
+                type: 'uri',
+                label: '📋 ดูคำสั่งซื้อ',
+                uri: liffLink || '',
+              },
+            },
+          ],
+          flex: 0,
         },
       },
     };
@@ -662,10 +703,12 @@ export default function Home() {
 
         const receiptPayload = getReceiptFlexMessage(
           liffProfile.displayName,
+          liffProfile.pictureUrl || null,
           orderDetails.name,
           purchasedDetails,
           calculateTotal(),
-          payLater
+          payLater,
+          finalLink
         );
         await shareMessage(receiptPayload, finalLink);
       } else {
@@ -1120,7 +1163,7 @@ export default function Home() {
                     className={styles.btn}
                     style={{ marginTop: '10px' }}
                   >
-                    {loading ? <div className={styles.spinner}></div> : '🛒 ยืนยันสั่งสินค้าและชำระเงิน'}
+                    {loading ? <div className={styles.spinner}></div> : '🛒 ยืนยันสั่งสินค้า'}
                   </button>
                 </div>
               </>
