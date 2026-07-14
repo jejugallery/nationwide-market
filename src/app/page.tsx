@@ -16,6 +16,8 @@ interface OrderDetails {
   accountName: string;
   bankName: string;
   accountNumber: string;
+  creatorName?: string;
+  creatorPicture?: string;
   items: {
     id: string;
     name: string;
@@ -29,7 +31,7 @@ export default function Home() {
 
   // LIFF State
   const [isLiffInit, setIsLiffInit] = useState(false);
-  const [liffProfile, setLiffProfile] = useState<{ displayName: string; userId: string } | null>(null);
+  const [liffProfile, setLiffProfile] = useState<{ displayName: string; userId: string; pictureUrl?: string } | null>(null);
   const [liffError, setLiffError] = useState<string | null>(null);
 
   // View state (Create Order)
@@ -75,7 +77,7 @@ export default function Home() {
         
         if (!liffId) {
           console.warn('NEXT_PUBLIC_LIFF_ID environment variable is missing.');
-          setLiffProfile({ displayName: 'Mock User (Local Development)', userId: 'U1234567890' });
+          setLiffProfile({ displayName: 'Mock User (Local Development)', userId: 'U1234567890', pictureUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150&h=150' });
           setIsLiffInit(true);
           return;
         }
@@ -90,13 +92,14 @@ export default function Home() {
           setLiffProfile({
             displayName: profile.displayName,
             userId: profile.userId,
+            pictureUrl: profile.pictureUrl,
           });
         }
       } catch (err: any) {
         console.error('LINE LIFF Init Failure:', err);
         setLiffError(err.message || 'Failed to initialize LIFF');
         // Set mock data so testing locally still works
-        setLiffProfile({ displayName: 'Developer Test', userId: 'U1234567890' });
+        setLiffProfile({ displayName: 'Developer Test', userId: 'U1234567890', pictureUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150&h=150' });
         setIsLiffInit(true);
       }
     };
@@ -202,7 +205,13 @@ export default function Home() {
   };
 
   // Create Flex Message for Order Creation
-  const getCreateFlexMessage = (name: string, orderItems: OrderItem[], liffLink: string) => {
+  const getCreateFlexMessage = (
+    name: string, 
+    orderItems: OrderItem[], 
+    liffLink: string,
+    creatorName?: string,
+    creatorPicture?: string
+  ) => {
     const flexItems = orderItems.map((item) => ({
       type: 'box',
       layout: 'horizontal',
@@ -243,11 +252,33 @@ export default function Home() {
               paddingAll: 'xl',
               contents: [
                 {
-                  type: 'text',
-                  text: '📢 เปิดรับออเดอร์แล้วจ้า!',
-                  color: '#ffffff',
-                  weight: 'bold',
-                  size: 'sm',
+                  type: 'box',
+                  layout: 'horizontal',
+                  spacing: 'md',
+                  contents: [
+                    creatorPicture ? {
+                      type: 'image',
+                      url: creatorPicture,
+                      size: 'xxs',
+                      aspectRatio: '1:1',
+                      aspectMode: 'cover',
+                      cornerRadius: 'xxl',
+                    } : {
+                      type: 'text',
+                      text: '👤',
+                      color: '#ffffff',
+                      size: 'sm',
+                      flex: 0,
+                    },
+                    {
+                      type: 'text',
+                      text: creatorName ? `เปิดรับออเดอร์จาก คุณ ${creatorName}` : 'เปิดรับออเดอร์แล้วจ้า!',
+                      color: '#ffffff',
+                      weight: 'bold',
+                      size: 'sm',
+                      wrap: true,
+                    }
+                  ]
                 },
                 {
                   type: 'text',
@@ -299,7 +330,7 @@ export default function Home() {
               color: '#0284c7',
               action: {
                 type: 'uri',
-                label: '🛒 กดสั่งเลย',
+                label: '🛒 กดสั่งเลยตอนนี้',
                 uri: liffLink,
               },
             },
@@ -507,6 +538,8 @@ export default function Home() {
           bankName: bankFinal,
           accountNumber,
           items: cleanItems,
+          creatorName: liffProfile?.displayName || null,
+          creatorPicture: liffProfile?.pictureUrl || null,
         }),
       });
 
@@ -524,7 +557,13 @@ export default function Home() {
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
 
         // Build Flex Message and trigger share
-        const flexPayload = getCreateFlexMessage(orderName, cleanItems, finalLink);
+        const flexPayload = getCreateFlexMessage(
+          orderName, 
+          cleanItems, 
+          finalLink, 
+          liffProfile?.displayName, 
+          liffProfile?.pictureUrl
+        );
         await shareMessage(flexPayload, finalLink);
       } else {
         setError(resData.error || 'Failed to create order.');
@@ -766,6 +805,37 @@ export default function Home() {
       {orderId ? (
         orderDetails ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Creator and Buyer Profiles Card */}
+            <div className={styles.card} style={{ gap: '16px', padding: '16px 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                {/* Creator Profile */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {orderDetails.creatorPicture ? (
+                    <img src={orderDetails.creatorPicture} alt="Creator" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-blue)' }} />
+                  ) : (
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ผู้ตั้งแผง</span>
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{orderDetails.creatorName || 'ผู้ตั้งแผง'}</span>
+                  </div>
+                </div>
+
+                {/* Buyer Profile */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ผู้สั่งซื้อ</span>
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{liffProfile?.displayName || 'ลูกค้า'}</span>
+                  </div>
+                  {liffProfile?.pictureUrl ? (
+                    <img src={liffProfile.pictureUrl} alt="Buyer" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-blue)' }} />
+                  ) : (
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Items Choice Card */}
             <div className={styles.card}>
               <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
@@ -836,9 +906,6 @@ export default function Home() {
             {/* Slip Upload & Verification Card */}
             <div className={styles.card}>
               <h3 className={styles.sectionTitle}>แนบสลิปเพื่อยืนยันยอดเงิน</h3>
-              <p className={styles.label} style={{ marginTop: '-8px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                * ระบบจะทำการใช้ Gemini AI ในการตรวจสอบจำนวนเงินโอน, ชื่อผู้รับ, และประวัติการโอนโดยอัตโนมัติ
-              </p>
 
               {slipBase64 ? (
                 <div className={styles.previewContainer}>
@@ -890,8 +957,24 @@ export default function Home() {
         )
       ) : (
         /* 2. CREATE ORDER VIEW (Default screen) */
-        <form onSubmit={handleSubmitCreateOrder} className={styles.card}>
-          <h3 className={styles.sectionTitle}>ออเดอร์</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Creator Profile Card */}
+          <div className={styles.card} style={{ gap: '16px', padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {liffProfile?.pictureUrl ? (
+                <img src={liffProfile.pictureUrl} alt="Creator" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-blue)' }} />
+              ) : (
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ผู้ตั้งแผง</span>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>{liffProfile?.displayName || 'ผู้ตั้งแผง'}</span>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmitCreateOrder} className={styles.card}>
+            <h3 className={styles.sectionTitle}>ออเดอร์</h3>
 
           <div className={styles.formGroup}>
             <input 
@@ -1013,7 +1096,8 @@ export default function Home() {
             {loading ? <div className={styles.spinner}></div> : '📢 ตั้งแผง'}
           </button>
         </form>
-      )}
+      </div>
+    )}
     </div>
   );
 }

@@ -11,9 +11,15 @@ export async function GET() {
         account_name VARCHAR(255) NOT NULL,
         bank_name VARCHAR(255) NOT NULL,
         account_number VARCHAR(255) NOT NULL,
+        creator_name VARCHAR(255),
+        creator_picture TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `;
+
+    // Ensure columns exist for backward compatibility
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_name VARCHAR(255)`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_picture TEXT`;
 
     // 2. Create order_items table
     await sql`

@@ -38,6 +38,8 @@ export async function GET(
         accountName: order.account_name,
         bankName: order.bank_name,
         accountNumber: order.account_number,
+        creatorName: order.creator_name,
+        creatorPicture: order.creator_picture,
         createdAt: order.created_at,
         items
       }
