@@ -318,8 +318,50 @@ export default function Home() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  // Image Resizer Helper
+  const resizeImage = (file: File, maxDimension: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const image = new Image();
+        image.onload = () => {
+          let width = image.width;
+          let height = image.height;
+
+          if (width > height) {
+            if (width > maxDimension) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context could not be created'));
+            return;
+          }
+          ctx.drawImage(image, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL(file.type || 'image/jpeg', 0.85);
+          resolve(dataUrl);
+        };
+        image.onerror = (err) => reject(err);
+        image.src = readerEvent.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
   // File Upload Helper
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -328,16 +370,18 @@ export default function Home() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setSlipBase64(reader.result as string);
+    try {
+      const resizedBase64 = await resizeImage(file, 1000);
+      setSlipBase64(resizedBase64);
       setSlipMimeType(file.type);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error resizing slip image:', err);
+      setError('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ');
+    }
   };
 
   // Promo Image Upload Helper
-  const handlePromoImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePromoImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -346,11 +390,13 @@ export default function Home() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPromoImageBase64(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const resizedBase64 = await resizeImage(file, 1000);
+      setPromoImageBase64(resizedBase64);
+    } catch (err) {
+      console.error('Error resizing promo image:', err);
+      setError('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ');
+    }
   };
 
   // Create Flex Message for Order Creation
