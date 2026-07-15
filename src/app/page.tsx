@@ -496,7 +496,7 @@ export default function Home() {
             },
             {
               type: 'text',
-              text: `ส่งสินค้าวันที่: ${shippingDate || 'โปรดสอบถามผู้ขาย'}`,
+              text: `พร้อมส่งสินค้า: ${shippingDate || 'โปรดสอบถามผู้ขาย'}`,
               size: 'xs',
               color: '#00b3f0',
               weight: 'bold',
@@ -543,24 +543,45 @@ export default function Home() {
     payLaterReceipt?: boolean,
     liffLink?: string
   ) => {
-    const flexItems = itemsBought.map((item) => ({
-      type: 'box',
-      layout: 'horizontal',
-      contents: [
-        {
-          type: 'text',
-          text: `${item.name} x${item.quantity}`,
-          size: 'sm',
-          color: '#555555',
-          flex: 4,
-          wrap: true,
-        },
-      ],
-    }));
+    const isCancelled = itemsBought.length === 0;
+
+    const flexItems = isCancelled 
+      ? [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: 'ยกเลิกรายการสินค้าทั้งหมดในคำสั่งซื้อนี้แล้ว',
+                color: '#ef4444',
+                size: 'sm',
+                weight: 'bold',
+                wrap: true,
+              }
+            ]
+          }
+        ]
+      : itemsBought.map((item) => ({
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: `${item.name} x${item.quantity}`,
+              size: 'sm',
+              color: '#555555',
+              flex: 4,
+              wrap: true,
+            },
+          ],
+        }));
 
     return {
       type: 'flex',
-      altText: `✅ คุณ ${buyerName} สั่งซื้อสินค้าแล้ว!`,
+      altText: isCancelled 
+        ? `🚫 คุณ ${buyerName} ยกเลิกคำสั่งซื้อเรียบร้อย` 
+        : `✅ คุณ ${buyerName} สั่งซื้อสินค้าแล้ว!`,
       contents: {
         type: 'bubble',
         body: {
@@ -570,13 +591,13 @@ export default function Home() {
             {
               type: 'box',
               layout: 'vertical',
-              backgroundColor: '#0369a1',
+              backgroundColor: isCancelled ? '#64748b' : '#0369a1',
               paddingAll: 'xl',
               contents: [
                 {
                   type: 'text',
-                  text: '🛒 มีคำสั่งซื้อเข้ามาใหม่!',
-                  color: '#38bdf8',
+                  text: isCancelled ? '🚫 ยกเลิกคำสั่งซื้อเรียบร้อย' : '🛒 มีคำสั่งซื้อเข้ามาใหม่!',
+                  color: isCancelled ? '#cbd5e1' : '#38bdf8',
                   weight: 'bold',
                   size: 'xs',
                 },
@@ -657,7 +678,7 @@ export default function Home() {
                       weight: 'bold',
                       size: 'md',
                       align: 'end',
-                      color: '#0284c7',
+                      color: isCancelled ? '#64748b' : '#0284c7',
                     },
                   ],
                 },
@@ -665,15 +686,17 @@ export default function Home() {
                   type: 'box',
                   layout: 'horizontal',
                   margin: 'md',
-                  backgroundColor: payLaterReceipt ? '#47556914' : '#0284c714',
+                  backgroundColor: isCancelled ? '#64748b14' : (payLaterReceipt ? '#47556914' : '#0284c714'),
                   cornerRadius: 'md',
                   paddingAll: 'md',
                   contents: [
                     {
                       type: 'text',
-                      text: payLaterReceipt ? '🕒 สั่งก่อนจ่ายทีหลัง (ค้างชำระ)' : '🛡️ แนบสลิปและยืนยันแล้วโดย AI',
+                      text: isCancelled 
+                        ? '🚫 ยกเลิกคำสั่งซื้อเรียบร้อย' 
+                        : (payLaterReceipt ? '🕒 สั่งก่อนจ่ายทีหลัง (ค้างชำระ)' : '🛡️ แนบสลิปและยืนยันแล้วโดย AI'),
                       size: 'xs',
-                      color: payLaterReceipt ? '#475569' : '#0284c7',
+                      color: isCancelled ? '#ef4444' : (payLaterReceipt ? '#475569' : '#0284c7'),
                       align: 'center',
                       weight: 'bold',
                     },
@@ -691,10 +714,10 @@ export default function Home() {
             {
               type: 'button',
               style: 'primary',
-              color: '#1e3a8a',
+              color: isCancelled ? '#64748b' : '#1e3a8a',
               action: {
                 type: 'uri',
-                label: '📋 ดูคำสั่งซื้อ',
+                label: isCancelled ? '📋 ไปที่หน้าสั่งซื้อสินค้า' : '📋 ดูคำสั่งซื้อ',
                 uri: liffLink || '',
               },
             },
@@ -889,8 +912,9 @@ export default function Home() {
       quantity: quantities[item.id] || 0,
     }));
 
-    const totalQty = Object.values(quantities).reduce((a, b) => a + b, 0);
-    if (totalQty === 0) {
+    const totalQty = (Object.values(quantities) as number[]).reduce((a, b) => a + b, 0);
+    const hasPreviousOrder = previousBuyerOrders.length > 0;
+    if (totalQty === 0 && !hasPreviousOrder) {
       setError('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ');
       return;
     }
@@ -1179,7 +1203,7 @@ export default function Home() {
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                   📅 {new Date(orderDetails.createdAt).toLocaleDateString('th-TH', {
                     year: 'numeric',
-                    month: 'short',
+                    month: 'long',
                     day: 'numeric'
                   })}
                 </span>
