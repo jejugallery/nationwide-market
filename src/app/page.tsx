@@ -334,6 +334,23 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
+  // Promo Image Upload Helper
+  const handlePromoImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('กรุณาอัปโหลดไฟล์ภาพ (PNG/JPG)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPromoImageBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Create Flex Message for Order Creation
   const getCreateFlexMessage = (
     name: string, 
@@ -911,6 +928,7 @@ export default function Home() {
                 setAccountName('');
                 setAccountNumber('');
                 setItems([{ name: '', price: 0 }]);
+                setPromoImageBase64(null);
               }} 
               className={styles.addBtn}
               style={{ width: '100%', borderStyle: 'solid', marginTop: '12px' }}
@@ -1475,6 +1493,34 @@ export default function Home() {
               className={styles.input} 
               required 
             />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label}>รูปภาพโปรโมทออเดอร์ (ไม่บังคับ)</label>
+            {promoImageBase64 ? (
+              <div className={styles.previewContainer}>
+                <img src={promoImageBase64} alt="Promo Preview" className={styles.previewImage} />
+                <button 
+                  type="button" 
+                  onClick={() => setPromoImageBase64(null)} 
+                  className={styles.removePreview}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <label className={styles.uploadZone}>
+                <div className={styles.uploadIcon}>📸</div>
+                <span className={styles.uploadText}>เลือกรูปภาพโปรโมท</span>
+                <span className={styles.uploadSubtext}>รองรับ JPG, PNG และ JPEG เท่านั้น</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handlePromoImageChange} 
+                  className={styles.hiddenInput} 
+                />
+              </label>
+            )}
           </div>
 
           <h3 className={styles.sectionTitle} style={{ marginTop: '8px' }}>รายการสินค้า</h3>
