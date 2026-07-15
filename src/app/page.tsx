@@ -205,6 +205,31 @@ export default function Home() {
     }
   }, [orderId, orderDetails, loading]);
 
+  // Automatically alert and close window after order placement success
+  useEffect(() => {
+    if (success && orderId) {
+      const totalQty = (Object.values(quantities) as number[]).reduce((a, b) => a + b, 0);
+      const isCancelled = totalQty === 0;
+      const timer = setTimeout(() => {
+        alert(isCancelled ? "ยกเลิกคำสั่งซื้อเรียบร้อย" : "ทำรายการสำเร็จ");
+        import('@line/liff').then((m) => {
+          const liff = m.default;
+          try {
+            if (liff.isLoggedIn()) {
+              liff.closeWindow();
+            } else {
+              window.close();
+            }
+          } catch (e) {
+            window.close();
+          }
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [success, orderId, quantities]);
+
+
   // Fetch orders created by this user when on setting-up screen
   useEffect(() => {
     if (orderId || !liffProfile?.userId) return;
