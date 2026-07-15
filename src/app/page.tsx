@@ -395,7 +395,6 @@ export default function Home() {
                   url: creatorPicture,
                   aspectMode: 'cover',
                   aspectRatio: '1:1',
-                  style: 'circle',
                   size: 'xxs',
                   flex: 0,
                 },
