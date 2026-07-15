@@ -68,6 +68,8 @@ export default function Home() {
   // View state (Place Order)
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [quantities, setQuantities] = useState<{ [itemId: string]: number }>({});
+  const [paidQuantities, setPaidQuantities] = useState<{ [itemId: string]: number }>({});
+  const [previousBuyerOrders, setPreviousBuyerOrders] = useState<any[]>([]);
   const [slipBase64, setSlipBase64] = useState<string | null>(null);
   const [slipMimeType, setSlipMimeType] = useState<string>('');
   const [isCopied, setIsCopied] = useState(false);
@@ -146,12 +148,28 @@ export default function Home() {
         const data = await res.json();
         if (data.success) {
           setOrderDetails(data.order);
-          // Initialize quantities to 0
           const initialQuantities: { [itemId: string]: number } = {};
+          const initialPaid: { [itemId: string]: number } = {};
           data.order.items.forEach((item: any) => {
             initialQuantities[item.id] = 0;
+            initialPaid[item.id] = 0;
           });
+          
+          if (data.order.previousBuyerOrders && Array.isArray(data.order.previousBuyerOrders)) {
+            setPreviousBuyerOrders(data.order.previousBuyerOrders);
+            data.order.previousBuyerOrders.forEach((bo: any) => {
+              if (bo.items && Array.isArray(bo.items)) {
+                bo.items.forEach((bi: any) => {
+                  initialQuantities[bi.itemId] = (initialQuantities[bi.itemId] || 0) + bi.quantity;
+                  if (bo.verified) {
+                    initialPaid[bi.itemId] = (initialPaid[bi.itemId] || 0) + bi.quantity;
+                  }
+                });
+              }
+            });
+          }
           setQuantities(initialQuantities);
+          setPaidQuantities(initialPaid);
         } else {
           setOrderDetails(null);
         }
@@ -280,6 +298,16 @@ export default function Home() {
     }, 0);
   };
 
+  const calculateUnpaidTotal = () => {
+    if (!orderDetails) return 0;
+    return orderDetails.items.reduce((sum, item) => {
+      const qty = quantities[item.id] || 0;
+      const paidQty = paidQuantities[item.id] || 0;
+      const unpaidQty = Math.max(0, qty - paidQty);
+      return sum + item.price * unpaidQty;
+    }, 0);
+  };
+
   // Add Item in Create Form
   const handleAddItem = () => {
     setItems([...items, { name: '', price: 0 }]);
@@ -307,7 +335,8 @@ export default function Home() {
   // Adjust item quantity in Order Placement
   const adjustQuantity = (itemId: string, direction: 'inc' | 'dec') => {
     const currentQty = quantities[itemId] || 0;
-    const newQty = direction === 'inc' ? currentQty + 1 : Math.max(0, currentQty - 1);
+    const minQty = paidQuantities[itemId] || 0;
+    const newQty = direction === 'inc' ? currentQty + 1 : Math.max(minQty, currentQty - 1);
     setQuantities({ ...quantities, [itemId]: newQty });
   };
 
@@ -854,26 +883,33 @@ export default function Home() {
     setError(null);
     if (!orderDetails || !liffProfile) return;
 
-    // Filter out ordered items
-    const selectedItems = Object.entries(quantities)
-      .filter(([_, qty]) => qty > 0)
-      .map(([itemId, qty]) => ({
-        itemId,
-        quantity: qty,
-      }));
+    // Map all items with their selected quantities
+    const selectedItems = orderDetails.items.map((item) => ({
+      itemId: item.id,
+      quantity: quantities[item.id] || 0,
+    }));
 
-    if (selectedItems.length === 0) {
+    const totalQty = Object.values(quantities).reduce((a, b) => a + b, 0);
+    if (totalQty === 0) {
       setError('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ');
       return;
     }
 
-    if (!payLater && !slipBase64) {
+    const unpaidTotal = calculateUnpaidTotal();
+
+    if (unpaidTotal > 0 && !payLater && !slipBase64) {
       setError('กรุณาแนบสลิปโอนเงินเพื่อยืนยันออเดอร์');
       return;
     }
 
     setLoading(true);
-    setLoadingStep(payLater ? 'กำลังบันทึกข้อมูลออเดอร์...' : 'กำลังอัปโหลดสลิปและประมวลผลด้วย Gemini AI...');
+    setLoadingStep(
+      unpaidTotal === 0
+        ? 'กำลังอัปเดตรายการออเดอร์...'
+        : payLater
+        ? 'กำลังบันทึกข้อมูลออเดอร์...'
+        : 'กำลังอัปโหลดสลิปและประมวลผลด้วย Gemini AI...'
+    );
 
     try {
       const response = await fetch(`/api/order/${orderDetails.id}/place`, {
@@ -883,10 +919,10 @@ export default function Home() {
           buyerName: liffProfile.displayName,
           buyerUserId: liffProfile.userId,
           buyerPicture: liffProfile.pictureUrl || null,
-          slipBase64: payLater ? null : slipBase64,
-          slipMimeType: payLater ? null : slipMimeType,
+          slipBase64: (payLater || unpaidTotal === 0) ? null : slipBase64,
+          slipMimeType: (payLater || unpaidTotal === 0) ? null : slipMimeType,
           items: selectedItems,
-          payLater,
+          payLater: unpaidTotal === 0 ? false : payLater,
         }),
       });
 
@@ -897,14 +933,16 @@ export default function Home() {
         setLoadingStep('');
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
 
-        // Map purchased items to names for flex message
-        const purchasedDetails = selectedItems.map((sItem) => {
-          const itemMeta = orderDetails.items.find((i) => i.id === sItem.itemId);
-          return {
-            name: itemMeta?.name || 'Unknown Item',
-            quantity: sItem.quantity,
-          };
-        });
+        // Map purchased items to names for flex message (only show quantity > 0)
+        const purchasedDetails = selectedItems
+          .filter((sItem) => sItem.quantity > 0)
+          .map((sItem) => {
+            const itemMeta = orderDetails.items.find((i) => i.id === sItem.itemId);
+            return {
+              name: itemMeta?.name || 'Unknown Item',
+              quantity: sItem.quantity,
+            };
+          });
 
         // Send Flex Receipt to chat
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
@@ -1046,6 +1084,69 @@ export default function Home() {
     );
   }
 
+  const groupedOrders = (() => {
+    if (!orderDetails?.buyerOrders) return [];
+    
+    const groups: { [buyerUserId: string]: {
+      buyerUserId: string;
+      buyerName: string;
+      buyerPicture: string | null;
+      latestCreatedAt: string;
+      items: { [itemName: string]: number };
+      totalPaid: number;
+      totalUnpaid: number;
+      totalAmount: number;
+      slips: { id: string; url: string; verified: boolean; payLater: boolean; createdAt: string }[];
+    }} = {};
+
+    orderDetails.buyerOrders.forEach((bo) => {
+      if (!groups[bo.buyerUserId]) {
+        groups[bo.buyerUserId] = {
+          buyerUserId: bo.buyerUserId,
+          buyerName: bo.buyerName,
+          buyerPicture: bo.buyerPicture || null,
+          latestCreatedAt: bo.createdAt,
+          items: {},
+          totalPaid: 0,
+          totalUnpaid: 0,
+          totalAmount: 0,
+          slips: []
+        };
+      }
+
+      const g = groups[bo.buyerUserId];
+      
+      if (new Date(bo.createdAt) > new Date(g.latestCreatedAt)) {
+        g.latestCreatedAt = bo.createdAt;
+      }
+
+      if (bo.items && Array.isArray(bo.items)) {
+        bo.items.forEach((item) => {
+          g.items[item.name] = (g.items[item.name] || 0) + item.quantity;
+        });
+      }
+
+      g.totalAmount += bo.totalAmount;
+      if (bo.verified) {
+        g.totalPaid += bo.totalAmount;
+      } else {
+        g.totalUnpaid += bo.totalAmount;
+      }
+
+      if (bo.slipUrl && bo.slipUrl !== 'PAY_LATER') {
+        g.slips.push({
+          id: bo.id,
+          url: bo.slipUrl,
+          verified: bo.verified,
+          payLater: bo.payLater,
+          createdAt: bo.createdAt
+        });
+      }
+    });
+
+    return Object.values(groups).sort((a, b) => new Date(b.latestCreatedAt).getTime() - new Date(a.latestCreatedAt).getTime());
+  })();
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -1076,13 +1177,11 @@ export default function Home() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
               {orderDetails.createdAt && (
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  📅 วันที่สร้าง: {new Date(orderDetails.createdAt).toLocaleDateString('th-TH', {
+                  📅 {new Date(orderDetails.createdAt).toLocaleDateString('th-TH', {
                     year: 'numeric',
                     month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })} น.
+                    day: 'numeric'
+                  })}
                 </span>
               )}
               {orderDetails.shippingDate && (
@@ -1175,7 +1274,7 @@ export default function Home() {
                           transition: 'var(--transition-smooth)'
                         }}
                       >
-                        📋 ดูคำสั่งซื้อ ({orderDetails.buyerOrders?.length || 0})
+                        📋 ดูคำสั่งซื้อ ({groupedOrders.length} คน)
                       </button>
                     </div>
                   </div>
@@ -1185,81 +1284,97 @@ export default function Home() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <h3 className={styles.sectionTitle}>รายการคำสั่งซื้อลูกค้า</h3>
                     
-                    {(!orderDetails.buyerOrders || orderDetails.buyerOrders.length === 0) ? (
+                    {groupedOrders.length === 0 ? (
                       <div className={styles.card} style={{ textAlign: 'center', padding: '32px 16px' }}>
                         <span style={{ fontSize: '24px' }}>📭</span>
                         <p style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>ยังไม่มีใครสั่งซื้อสินค้าในขณะนี้</p>
                       </div>
                     ) : (
-                      orderDetails.buyerOrders.map((bo) => (
-                        <div key={bo.id} className={styles.card} style={{ padding: '16px 20px', gap: '12px' }}>
+                      groupedOrders.map((g) => (
+                        <div key={g.buyerUserId} className={styles.card} style={{ padding: '16px 20px', gap: '12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {bo.buyerPicture ? (
-                              <img src={bo.buyerPicture} alt={bo.buyerName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                            {g.buyerPicture ? (
+                              <img src={g.buyerPicture} alt={g.buyerName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
                             ) : (
                               <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
                             )}
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontSize: '13px', fontWeight: 800 }}>{bo.buyerName}</span>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{new Date(bo.createdAt).toLocaleString('th-TH')}</span>
+                              <span style={{ fontSize: '13px', fontWeight: 800 }}>{g.buyerName}</span>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                                อัปเดตล่าสุด: {new Date(g.latestCreatedAt).toLocaleString('th-TH')}
+                              </span>
                             </div>
 
                             <div style={{ marginLeft: 'auto' }}>
-                              {bo.payLater ? (
-                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>
-                                  🕒 จ่ายทีหลัง
-                                </span>
-                              ) : bo.verified ? (
+                              {g.totalUnpaid === 0 ? (
                                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#f0f9ff', color: '#0369a1', border: '1px solid #cbd5e1' }}>
                                   ✅ ชำระแล้ว
                                 </span>
-                              ) : (
+                              ) : g.slips.some(s => !s.verified && !s.payLater) ? (
                                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }}>
-                                  ⚠️ รอยืนยัน
+                                  ⚠️ รอยืนยันสลิป
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>
+                                  🕒 ค้างชำระ
                                 </span>
                               )}
                             </div>
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                            {bo.items.map((item, idx) => (
+                            {Object.entries(g.items).map(([name, qty], idx) => (
                               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                                <span style={{ color: '#475569' }}>{item.name}</span>
-                                <span style={{ fontWeight: 700 }}>x{item.quantity}</span>
+                                <span style={{ color: '#475569' }}>{name}</span>
+                                <span style={{ fontWeight: 700 }}>x{qty}</span>
                               </div>
                             ))}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #e2e8f0', paddingTop: '6px', marginTop: '2px', fontSize: '13px', fontWeight: 800 }}>
-                              <span>ยอดรวม</span>
-                              <span style={{ color: '#0369a1' }}>{bo.totalAmount.toLocaleString()} ฿</span>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px dashed #cbd5e1', paddingTop: '8px', marginTop: '4px', fontSize: '12px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a', fontWeight: 600 }}>
+                                <span>จ่ายแล้ว</span>
+                                <span>{g.totalPaid.toLocaleString()} ฿</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444', fontWeight: 600 }}>
+                                <span>ค้างจ่าย</span>
+                                <span>{g.totalUnpaid.toLocaleString()} ฿</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, borderTop: '1px solid #f1f5f9', paddingTop: '4px', marginTop: '2px', fontSize: '13px' }}>
+                                <span>ยอดรวมทั้งหมด</span>
+                                <span style={{ color: '#0369a1' }}>{g.totalAmount.toLocaleString()} ฿</span>
+                              </div>
                             </div>
                           </div>
 
-                           {!bo.payLater && bo.slipUrl && bo.slipUrl !== 'PAY_LATER' && (
-                            <button 
-                              type="button"
-                              onClick={() => setSelectedSlipUrl(bo.slipUrl)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px',
-                                textDecoration: 'none',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                color: '#0284c7',
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                background: '#f0f9ff',
-                                border: '1px solid rgba(2, 132, 199, 0.15)',
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                transition: 'var(--transition-smooth)'
-                              }}
-                              onMouseOver={(e) => { e.currentTarget.style.background = '#e0f2fe'; }}
-                              onMouseOut={(e) => { e.currentTarget.style.background = '#f0f9ff'; }}
-                            >
-                              📄 เปิดดูภาพสลิป
-                            </button>
+                          {g.slips.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                              {g.slips.map((slip, sIdx) => (
+                                <button 
+                                  key={slip.id}
+                                  type="button"
+                                  onClick={() => setSelectedSlipUrl(slip.url)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    color: '#0284c7',
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    background: '#f0f9ff',
+                                    border: '1px solid rgba(2, 132, 199, 0.15)',
+                                    cursor: 'pointer',
+                                    transition: 'var(--transition-smooth)'
+                                  }}
+                                  onMouseOver={(e) => { e.currentTarget.style.background = '#e0f2fe'; }}
+                                  onMouseOut={(e) => { e.currentTarget.style.background = '#f0f9ff'; }}
+                                >
+                                  📄 สลิปที่ {sIdx + 1} ({slip.verified ? '✅ ผ่าน' : '⚠️ รอยืนยัน'})
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </div>
                       ))
@@ -1315,10 +1430,23 @@ export default function Home() {
                       </div>
                     </div>
 
-                  <div className={styles.card}>
-                      <div className={styles.summaryTotal}>
-                        <span className={styles.totalLabel}>ราคารวมทั้งหมด</span>
-                        <span className={styles.totalValue}>{calculateTotal().toLocaleString()} ฿</span>
+                  <div className={styles.card} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        <span>ราคารวมทั้งหมด</span>
+                        <span>{calculateTotal().toLocaleString()} ฿</span>
+                      </div>
+                      {(Object.values(paidQuantities) as number[]).reduce((a: number, b: number) => a + b, 0) > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>
+                          <span>ชำระเงินแล้ว</span>
+                          <span>-{Object.keys(paidQuantities).reduce((sum: number, id: string) => {
+                            const item = orderDetails.items.find((it: any) => it.id === id);
+                            return sum + (item ? item.price * paidQuantities[id] : 0);
+                          }, 0).toLocaleString()} ฿</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #cbd5e1', paddingTop: '8px', fontSize: '15px', fontWeight: 800, color: '#ef4444' }}>
+                        <span>ยอดที่ต้องชำระเพิ่ม</span>
+                        <span>{calculateUnpaidTotal().toLocaleString()} ฿</span>
                       </div>
                     </div>
 
@@ -1351,64 +1479,118 @@ export default function Home() {
                     </div>
 
                     <div className={styles.card}>
-                      <h3 className={styles.sectionTitle}>แนบสลิปเพื่อยืนยันยอดเงิน</h3>
+                      {calculateUnpaidTotal() > 0 ? (
+                        <>
+                          <h3 className={styles.sectionTitle}>แนบสลิปเพื่อยืนยันยอดเงิน</h3>
 
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--border-radius-md)', border: '1px solid #e2e8f0', marginBottom: '8px' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={payLater} 
-                          onChange={(e) => {
-                            setPayLater(e.target.checked);
-                            if (e.target.checked) {
-                              setSlipBase64(null);
-                              setSlipMimeType('');
-                            }
-                          }} 
-                          style={{ width: '16px', height: '16px', accentColor: 'var(--primary-blue)', cursor: 'pointer' }}
-                        />
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>🕒 สั่งก่อนจ่ายทีหลัง (ค้างชำระ)</span>
-                      </label>
-
-                      {!payLater && (
-                        slipBase64 ? (
-                          <div className={styles.previewContainer}>
-                            <img src={slipBase64} alt="Slip Preview" className={styles.previewImage} />
-                            <button 
-                              type="button" 
-                              onClick={() => {
-                                setSlipBase64(null);
-                                setSlipMimeType('');
-                              }} 
-                              className={styles.removePreview}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <label className={styles.uploadZone}>
-                            <div className={styles.uploadIcon}>⬆</div>
-                            <span className={styles.uploadText}>เลือกไฟล์ภาพสลิปโอนเงิน</span>
-                            <span className={styles.uploadSubtext}>รองรับ JPG, PNG และ JPEG เท่านั้น</span>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--border-radius-md)', border: '1px solid #e2e8f0', marginBottom: '8px' }}>
                             <input 
-                              type="file" 
-                              accept="image/*" 
-                              onChange={handleFileChange} 
-                              className={styles.hiddenInput} 
+                              type="checkbox" 
+                              checked={payLater} 
+                              onChange={(e) => {
+                                setPayLater(e.target.checked);
+                                if (e.target.checked) {
+                                  setSlipBase64(null);
+                                  setSlipMimeType('');
+                                }
+                              }} 
+                              style={{ width: '16px', height: '16px', accentColor: 'var(--primary-blue)', cursor: 'pointer' }}
                             />
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>🕒 สั่งก่อนจ่ายทีหลัง (ค้างชำระ)</span>
                           </label>
-                        )
+
+                          {!payLater && (
+                            slipBase64 ? (
+                              <div className={styles.previewContainer}>
+                                <img src={slipBase64} alt="Slip Preview" className={styles.previewImage} />
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    setSlipBase64(null);
+                                    setSlipMimeType('');
+                                  }} 
+                                  className={styles.removePreview}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <label className={styles.uploadZone}>
+                                <div className={styles.uploadIcon}>⬆</div>
+                                <span className={styles.uploadText}>เลือกไฟล์ภาพสลิปโอนเงิน</span>
+                                <span className={styles.uploadSubtext}>รองรับ JPG, PNG และ JPEG เท่านั้น</span>
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  onChange={handleFileChange} 
+                                  className={styles.hiddenInput} 
+                                />
+                              </label>
+                            )
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '28px' }}>✅</span>
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>ชำระเงินครบแล้ว ไม่ต้องแนบสลิปเพิ่มเติม</span>
+                          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0 }}>คุณสามารถกดปุ่มด้านล่างเพื่ออัปเดตคำสั่งซื้อได้ทันที</p>
+                        </div>
                       )}
 
                       <button 
                         type="button" 
                         onClick={handleSubmitPlaceOrder} 
-                        disabled={loading || calculateTotal() === 0 || (!payLater && !slipBase64) || !orderDetails.isActive} 
+                        disabled={loading || (!payLater && calculateUnpaidTotal() > 0 && !slipBase64) || !orderDetails.isActive} 
                         className={styles.btn}
                         style={{ marginTop: '10px' }}
                       >
-                        {loading ? <div className={styles.spinner}></div> : (!orderDetails.isActive ? '🕒 ปิดรับคิวสั่งซื้อแล้ว' : '🛒 ยืนยันสั่งสินค้า')}
+                        {loading ? <div className={styles.spinner}></div> : (!orderDetails.isActive ? '🕒 ปิดรับคิวสั่งซื้อแล้ว' : (calculateUnpaidTotal() === 0 ? '🛒 ยืนยันปรับปรุงคำสั่งซื้อ' : '🛒 ยืนยันทำรายการ'))}
                       </button>
                     </div>
+
+                    {previousBuyerOrders.length > 0 && (
+                      <div className={styles.card} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <h3 className={styles.sectionTitle}>ประวัติการสั่งซื้อและสลิปเดิมของคุณ</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {previousBuyerOrders.map((bo, idx) => (
+                            <div key={bo.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ fontWeight: 700 }}>
+                                  รายการที่ {previousBuyerOrders.length - idx}: {bo.totalAmount.toLocaleString()} ฿
+                                </span>
+                                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                                  {new Date(bo.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} น.
+                                </span>
+                              </div>
+                              
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px', background: bo.verified ? '#f0f9ff' : '#fef2f2', color: bo.verified ? '#0369a1' : '#ef4444', border: '1px solid #cbd5e1' }}>
+                                  {bo.verified ? '✅ จ่ายแล้ว' : bo.payLater ? '🕒 ค้างจ่าย' : '⚠️ รอยืนยัน'}
+                                </span>
+                                {!bo.payLater && bo.slipUrl && bo.slipUrl !== 'PAY_LATER' && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setSelectedSlipUrl(bo.slipUrl)} 
+                                    style={{
+                                      border: 'none',
+                                      background: 'none',
+                                      color: '#0284c7',
+                                      fontSize: '11px',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer',
+                                      textDecoration: 'underline',
+                                      padding: '2px 4px'
+                                    }}
+                                  >
+                                    📄 สลิป
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </>
