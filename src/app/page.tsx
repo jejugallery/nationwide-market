@@ -1045,16 +1045,6 @@ export default function Home() {
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 0' }}>
-            {/* Promo Image inside header */}
-            {orderDetails.promoImageUrl && (
-              <div style={{ width: '100%', maxWidth: '400px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginBottom: '8px' }}>
-                <img 
-                  src={orderDetails.promoImageUrl} 
-                  alt="Promo" 
-                  style={{ width: '100%', height: 'auto', display: 'block' }} 
-                />
-              </div>
-            )}
             
             <span className={styles.badge} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
@@ -1263,6 +1253,16 @@ export default function Home() {
                     {!orderDetails.isActive && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: 'var(--border-radius-md)', color: '#ef4444', fontSize: '13px', fontWeight: 800, marginBottom: '8px' }}>
                         🕒 ออเดอร์นี้ปิดรับคิวสั่งซื้อแล้ว
+                      </div>
+                    )}
+
+                    {orderDetails.promoImageUrl && (
+                      <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '12px' }}>
+                        <img 
+                          src={orderDetails.promoImageUrl} 
+                          alt="Promo Banner" 
+                          style={{ width: '100%', height: 'auto', display: 'block' }} 
+                        />
                       </div>
                     )}
 
