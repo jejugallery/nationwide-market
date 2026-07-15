@@ -1221,8 +1221,9 @@ export default function Home() {
                         ))}
                       </div>
                     </div>
+                  </div>
 
-                    <div className={styles.card}>
+                  <div className={styles.card}>
                       <div className={styles.summaryTotal}>
                         <span className={styles.totalLabel}>ราคารวมทั้งหมด</span>
                         <span className={styles.totalValue}>{calculateTotal().toLocaleString()} ฿</span>
