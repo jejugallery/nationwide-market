@@ -430,54 +430,23 @@ export default function Home() {
           type: 'box',
           layout: 'vertical',
           contents: [
-            creatorPicture && creatorPicture.startsWith('https') ? {
-              type: 'box',
-              layout: 'horizontal',
-              justifyContent: 'center',
-              alignItems: 'center',
-              spacing: 'xs',
-              contents: [
-                {
-                  type: 'image',
-                  url: creatorPicture,
-                  aspectMode: 'cover',
-                  aspectRatio: '1:1',
-                  size: 'xxs',
-                  flex: 0,
-                },
-                {
-                  type: 'text',
-                  text: creatorName || 'ร้านค้า',
-                  size: 'xs',
-                  color: '#38bdf8',
-                  flex: 0,
-                  gravity: 'center',
-                }
-              ]
-            } : {
-              type: 'text',
-              text: creatorName || 'ร้านค้า',
-              align: 'center',
-              size: 'xs',
-              color: '#38bdf8',
-            },
             {
               type: 'text',
               text: 'เปิดรับออเดอร์',
               align: 'center',
               weight: 'bold',
-              size: 'md',
+              size: 'xxl',
               margin: 'xs',
+              color: '#FFFFFF',
             },
           ],
+          backgroundColor: '#3b61ad',
         },
         hero: {
           type: 'image',
           url: (promoImageUrl && promoImageUrl.startsWith('https')) 
-            ? promoImageUrl
-            : (creatorPicture && creatorPicture.startsWith('https')) 
-            ? creatorPicture 
-            : 'https://developers-resource.landpress.line.me/fx/img/01_1_cafe.png',
+            ? promoImageUrl 
+            : 'https://images.unsplash.com/photo-1526318896980-cf78c088247c?w=800',
           size: 'full',
           aspectRatio: '20:13',
           aspectMode: 'cover',
@@ -498,9 +467,9 @@ export default function Home() {
             },
             {
               type: 'text',
-              text: `พร้อมส่งสินค้า: ${shippingDate || 'โปรดสอบถามผู้ขาย'}`,
+              text: `ส่งสินค้าวันที่: ${shippingDate || 'โปรดสอบถามผู้ขาย'}`,
               size: 'xs',
-              color: '#ef4444',
+              color: '#00b3f0',
               weight: 'bold',
               margin: 'xs',
             },
@@ -523,18 +492,13 @@ export default function Home() {
               height: 'sm',
               action: {
                 type: 'uri',
-                label: '🛒 สั่งเลยตอนนี้',
+                label: 'สั่งเลยตอนนี้',
                 uri: liffLink,
               },
-            },
-            {
-              type: 'box',
-              layout: 'vertical',
-              contents: [],
-              margin: 'sm',
+              color: '#FFFFFF',
             },
           ],
-          flex: 0,
+          backgroundColor: '#3b61ad',
         },
       },
     };

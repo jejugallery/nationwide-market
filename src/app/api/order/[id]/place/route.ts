@@ -56,6 +56,21 @@ export async function POST(
       dbItemsMap.set(item.id, parseFloat(item.price));
     }
 
+    // Fetch previous orders of this buyer to separate paid vs unpaid quantities
+    const existingOrders = await sql`
+      SELECT bo.id, bo.verified, boi.order_item_id, boi.quantity
+      FROM buyer_orders bo
+      JOIN buyer_order_items boi ON bo.id = boi.buyer_order_id
+      WHERE bo.order_id = ${orderId} AND bo.buyer_user_id = ${buyerUserId}
+    `;
+
+    const paidQuantities = new Map<string, number>();
+    for (const row of existingOrders) {
+      if (row.verified) {
+        paidQuantities.set(row.order_item_id, (paidQuantities.get(row.order_item_id) || 0) + row.quantity);
+      }
+    }
+
     let calculatedTotal = 0;
     const purchaseItemsToInsert = [];
 
@@ -67,17 +82,45 @@ export async function POST(
           { status: 400 }
         );
       }
-      if (typeof clientItem.quantity !== 'number' || clientItem.quantity <= 0) {
+      if (typeof clientItem.quantity !== 'number' || clientItem.quantity < 0) {
         return NextResponse.json(
           { success: false, error: `Invalid quantity for item ${clientItem.itemId}.` },
           { status: 400 }
         );
       }
 
-      calculatedTotal += dbPrice * clientItem.quantity;
-      purchaseItemsToInsert.push({
-        itemId: clientItem.itemId,
-        quantity: clientItem.quantity
+      const paidQty = paidQuantities.get(clientItem.itemId) || 0;
+      const newUnpaidQty = clientItem.quantity - paidQty;
+
+      if (newUnpaidQty < 0) {
+        return NextResponse.json(
+          { success: false, error: `ไม่สามารถลดจำนวนของสินค้าลงต่ำกว่าจำนวนที่ชำระเงินแล้วได้ (${paidQty} ชิ้น)` },
+          { status: 400 }
+        );
+      }
+
+      if (newUnpaidQty > 0) {
+        calculatedTotal += dbPrice * newUnpaidQty;
+        purchaseItemsToInsert.push({
+          itemId: clientItem.itemId,
+          quantity: newUnpaidQty
+        });
+      }
+    }
+
+    if (calculatedTotal === 0) {
+      // User only kept their paid items (reduced unpaid items to 0) or did not order any extra.
+      // Delete any previous unpaid orders
+      await sql`
+        DELETE FROM buyer_orders
+        WHERE order_id = ${orderId} AND buyer_user_id = ${buyerUserId} AND verified = false
+      `;
+
+      return NextResponse.json({
+        success: true,
+        buyerOrderId: null,
+        slipUrl: null,
+        analysis: { payLater: false, message: 'Unpaid orders cleared successfully.' }
       });
     }
 
@@ -171,6 +214,12 @@ export async function POST(
       
       verified = true;
     }
+
+    // Delete any previous unpaid orders before inserting the new updated one
+    await sql`
+      DELETE FROM buyer_orders
+      WHERE order_id = ${orderId} AND buyer_user_id = ${buyerUserId} AND verified = false
+    `;
 
     // 9. Record buyer order in database
     const buyerOrderResult = await sql`
