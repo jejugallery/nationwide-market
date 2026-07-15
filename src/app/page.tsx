@@ -1038,30 +1038,46 @@ export default function Home() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Nationwide Market</h1>
-        <span className={styles.subtitle}>ระบบตั้งแผงขายของบริษัทเนชั่นไวด์</span>
-        {orderId && orderDetails && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-            <span className={styles.badge}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }}></span>
-              เปิดรับออเดอร์: {orderDetails.name}
-            </span>
-            {orderDetails.createdAt && (
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                สร้างเมื่อ: {new Date(orderDetails.createdAt).toLocaleDateString('th-TH', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })} น.
-              </span>
+        {(!orderId || !orderDetails) ? (
+          <>
+            <h1 className={styles.title}>Nationwide Market</h1>
+            <span className={styles.subtitle}>ระบบตั้งแผงขายของบริษัทเนชั่นไวด์</span>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 0' }}>
+            {/* Promo Image inside header */}
+            {orderDetails.promoImageUrl && (
+              <div style={{ width: '100%', maxWidth: '400px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginBottom: '8px' }}>
+                <img 
+                  src={orderDetails.promoImageUrl} 
+                  alt="Promo" 
+                  style={{ width: '100%', height: 'auto', display: 'block' }} 
+                />
+              </div>
             )}
-            {orderDetails.shippingDate && (
-              <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 800, marginTop: '2px' }}>
-                📅 ส่งสินค้าวันที่: {orderDetails.shippingDate}
-              </span>
-            )}
+            
+            <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0', textAlign: 'center' }}>
+              {orderDetails.name}
+            </h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              {orderDetails.createdAt && (
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  📅 วันที่สร้าง: {new Date(orderDetails.createdAt).toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} น.
+                </span>
+              )}
+              {orderDetails.shippingDate && (
+                <span style={{ fontSize: '16px', color: '#ef4444', fontWeight: 800 }}>
+                  🚚 ส่งสินค้าวันที่: {orderDetails.shippingDate}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </header>
@@ -1245,18 +1261,8 @@ export default function Home() {
                       </div>
                     )}
 
-                    <div className={styles.card} style={{ padding: '0', overflow: 'hidden' }}>
-                      {orderDetails.promoImageUrl && (
-                        <div style={{ width: '100%', aspectRatio: '20/13', overflow: 'hidden', borderBottom: '1px solid #e2e8f0' }}>
-                          <img 
-                            src={orderDetails.promoImageUrl} 
-                            alt="Promo" 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                          />
-                        </div>
-                      )}
-                      <div style={{ padding: '20px' }}>
-                        <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
+                    <div className={styles.card}>
+                      <h3 className={styles.sectionTitle}>เลือกรายการสินค้า</h3>
                       
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         {orderDetails.items.map((item) => (
@@ -1286,7 +1292,6 @@ export default function Home() {
                         ))}
                       </div>
                     </div>
-                  </div>
 
                   <div className={styles.card}>
                       <div className={styles.summaryTotal}>
