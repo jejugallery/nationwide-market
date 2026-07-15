@@ -31,8 +31,8 @@ For the reference number, search for the Transaction Reference Number, Ref No., 
 Additionally, check if the recipient of the money (receiver name) matches the expected receiver name: "${expectedReceiver}".
 Note that the slip receiver name and the expected name can be in different languages (Thai vs English transliteration), have prefixes (Mr., Mrs., นาย, นาง, นางสาว, บจก., Co., Ltd.), or have spacing differences. Perform a smart match and set "receiver_matches" to true if they refer to the same person/company, and false otherwise.`;
 
-  // We use gemini-1.5-flash as the stable model for structured JSON slip extraction.
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  // We use gemini-3.1-flash-lite as the stable model for structured JSON slip extraction.
+  const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
