@@ -1092,10 +1092,17 @@ export default function Home() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 0' }}>
             
-            <span className={styles.badge} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
-              เปิดรับออเดอร์
-            </span>
+            {orderDetails.isActive ? (
+              <span className={styles.badge} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
+                เปิดรับออเดอร์
+              </span>
+            ) : (
+              <span className={styles.badge} style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', color: '#dc2626' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#dc2626', display: 'inline-block' }}></span>
+                ปิดรับออเดอร์
+              </span>
+            )}
 
             <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0', textAlign: 'center' }}>
               {orderDetails.name}
