@@ -1487,7 +1487,7 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                       <button
                         type="button"
                         onClick={() => handleToggleOrderStatus(co.id, co.isActive)}
@@ -1500,8 +1500,7 @@ export default function Home() {
                           borderColor: co.isActive ? '#ef4444' : '#0284c7',
                           background: co.isActive ? '#fef2f2' : '#f0f9ff',
                           color: co.isActive ? '#ef4444' : '#0284c7',
-                          cursor: 'pointer',
-                          marginLeft: 'auto'
+                          cursor: 'pointer'
                         }}
                       >
                         {co.isActive ? '⛔ ปิดรับออเดอร์' : '✅ เปิดรับออเดอร์'}
@@ -1539,7 +1538,8 @@ export default function Home() {
                           border: '1px solid #fee2e2',
                           background: '#fef2f2',
                           color: '#ef4444',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          marginLeft: 'auto'
                         }}
                       >
                         🗑️ ลบ
