@@ -487,7 +487,7 @@ export default function Home() {
               color: '#FFFFFF',
             },
           ],
-          backgroundColor: '#3b61ad',
+          backgroundColor: '#1e3a8a',
         },
         hero: {
           type: 'image',
@@ -545,7 +545,7 @@ export default function Home() {
               color: '#FFFFFF',
             },
           ],
-          backgroundColor: '#3b61ad',
+          backgroundColor: '#1e3a8a',
         },
       },
     };
