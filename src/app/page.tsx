@@ -1056,6 +1056,11 @@ export default function Home() {
               </div>
             )}
             
+            <span className={styles.badge} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', color: '#16a34a' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
+              เปิดรับออเดอร์
+            </span>
+
             <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0', textAlign: 'center' }}>
               {orderDetails.name}
             </h2>
