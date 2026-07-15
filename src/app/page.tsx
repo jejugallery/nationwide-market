@@ -1033,7 +1033,8 @@ export default function Home() {
           payLater,
           finalLink
         );
-        await shareMessage(receiptPayload, finalLink, false);
+        // Temporarily disabled sending Flex Message for summary & cancellation
+        // await shareMessage(receiptPayload, finalLink, false);
       } else {
         setError(resData.error || 'Failed to submit order.');
       }
