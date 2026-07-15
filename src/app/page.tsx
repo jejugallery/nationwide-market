@@ -380,7 +380,32 @@ export default function Home() {
           type: 'box',
           layout: 'vertical',
           contents: [
-            {
+            creatorPicture && creatorPicture.startsWith('https') ? {
+              type: 'box',
+              layout: 'horizontal',
+              justifyContent: 'center',
+              alignItems: 'center',
+              spacing: 'xs',
+              contents: [
+                {
+                  type: 'image',
+                  url: creatorPicture,
+                  aspectMode: 'cover',
+                  aspectRatio: '1:1',
+                  style: 'circle',
+                  size: 'xxs',
+                  flex: 0,
+                },
+                {
+                  type: 'text',
+                  text: creatorName || 'ร้านค้า',
+                  size: 'xs',
+                  color: '#38bdf8',
+                  flex: 0,
+                  gravity: 'center',
+                }
+              ]
+            } : {
               type: 'text',
               text: creatorName || 'ร้านค้า',
               align: 'center',
@@ -391,6 +416,9 @@ export default function Home() {
               type: 'text',
               text: 'เปิดรับออเดอร์',
               align: 'center',
+              weight: 'bold',
+              size: 'md',
+              margin: 'xs',
             },
           ],
         },
@@ -420,9 +448,23 @@ export default function Home() {
               size: 'xl',
             },
             {
+              type: 'text',
+              text: `สร้างเมื่อ: ${new Date().toLocaleDateString('th-TH', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })} น.`,
+              size: 'xxs',
+              color: '#94a3b8',
+              margin: 'xs',
+            },
+            {
               type: 'box',
               layout: 'vertical',
               contents: flexItems,
+              margin: 'md',
             },
           ],
         },
