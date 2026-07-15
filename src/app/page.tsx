@@ -17,6 +17,7 @@ interface OrderDetails {
   bankName: string;
   accountNumber: string;
   promoImageUrl?: string;
+  shippingDate?: string;
   creatorName?: string;
   creatorPicture?: string;
   creatorUserId?: string;
@@ -61,6 +62,7 @@ export default function Home() {
   const [customBankName, setCustomBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [promoImageBase64, setPromoImageBase64] = useState<string | null>(null);
+  const [shippingDate, setShippingDate] = useState('');
   const [items, setItems] = useState<OrderItem[]>([{ name: '', price: 0 }]);
 
   // View state (Place Order)
@@ -358,7 +360,8 @@ export default function Home() {
     liffLink: string,
     creatorName?: string,
     creatorPicture?: string,
-    promoImageUrl?: string
+    promoImageUrl?: string,
+    shippingDate?: string
   ) => {
     const flexItems = orderItems.map((item) => ({
       type: 'box',
@@ -449,15 +452,10 @@ export default function Home() {
             },
             {
               type: 'text',
-              text: `สร้างเมื่อ: ${new Date().toLocaleDateString('th-TH', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })} น.`,
-              size: 'xxs',
-              color: '#94a3b8',
+              text: `ส่งสินค้าวันที่: ${shippingDate || 'โปรดสอบถามผู้ขาย'}`,
+              size: 'xs',
+              color: '#ef4444',
+              weight: 'bold',
               margin: 'xs',
             },
             {
@@ -785,6 +783,7 @@ export default function Home() {
           bankName: bankFinal,
           accountNumber,
           promoImageUrl,
+          shippingDate,
           items: cleanItems,
           creatorName: liffProfile?.displayName || null,
           creatorPicture: liffProfile?.pictureUrl || null,
@@ -825,7 +824,8 @@ export default function Home() {
           finalLink, 
           liffProfile?.displayName, 
           liffProfile?.pictureUrl || undefined,
-          promoImageUrl || undefined
+          promoImageUrl || undefined,
+          shippingDate || undefined
         );
         await shareMessage(flexPayload, finalLink);
       } else {
@@ -971,6 +971,7 @@ export default function Home() {
                 setAccountNumber('');
                 setItems([{ name: '', price: 0 }]);
                 setPromoImageBase64(null);
+                setShippingDate('');
               }} 
               className={styles.addBtn}
               style={{ width: '100%', borderStyle: 'solid', marginTop: '12px' }}
@@ -1055,6 +1056,11 @@ export default function Home() {
                   hour: '2-digit',
                   minute: '2-digit'
                 })} น.
+              </span>
+            )}
+            {orderDetails.shippingDate && (
+              <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 800, marginTop: '2px' }}>
+                📅 ส่งสินค้าวันที่: {orderDetails.shippingDate}
               </span>
             )}
           </div>
@@ -1441,6 +1447,11 @@ export default function Home() {
                             minute: '2-digit'
                           })} น.
                         </span>
+                        {co.shippingDate && (
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#ef4444', marginTop: '2px' }}>
+                            📅 ส่งสินค้า: {co.shippingDate}
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>({co.buyerCount} คำสั่งซื้อ)</span>
@@ -1606,6 +1617,19 @@ export default function Home() {
             >
               + เพิ่มเมนูสินค้า
             </button>
+          </div>
+
+          <h3 className={styles.sectionTitle} style={{ marginTop: '16px' }}>การจัดส่ง</h3>
+          <div className={styles.formGroup}>
+            <label className={styles.label}>วันที่พร้อมส่งสินค้า</label>
+            <input 
+              type="text" 
+              placeholder="เช่น พรุ่งนี้เช้า, ทุกวันจันทร์, หรือระบุวันที่ 17 ก.ค." 
+              value={shippingDate} 
+              onChange={(e) => setShippingDate(e.target.value)} 
+              className={styles.input} 
+              required 
+            />
           </div>
 
           <h3 className={styles.sectionTitle} style={{ marginTop: '8px' }}>รายละเอียดการเรียกเก็บเงิน</h3>

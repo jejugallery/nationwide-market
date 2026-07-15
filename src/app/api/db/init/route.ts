@@ -24,6 +24,7 @@ export async function GET() {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_picture TEXT`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS creator_user_id VARCHAR(255)`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_date VARCHAR(255)`;
 
     // 2. Create order_items table
     await sql`

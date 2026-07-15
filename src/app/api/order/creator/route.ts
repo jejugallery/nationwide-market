@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     }
 
     const orders = await sql`
-      SELECT o.id, o.name, o.account_name, o.bank_name, o.account_number, o.is_active, o.created_at,
+      SELECT o.id, o.name, o.account_name, o.bank_name, o.account_number, o.is_active, o.created_at, o.shipping_date,
              (SELECT COUNT(*) FROM buyer_orders WHERE order_id = o.id) as buyer_count
       FROM orders o
       WHERE o.creator_user_id = ${creatorUserId}
@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       accountNumber: o.account_number,
       isActive: o.is_active,
       createdAt: o.created_at,
+      shippingDate: o.shipping_date,
       buyerCount: parseInt(o.buyer_count || '0')
     }));
 

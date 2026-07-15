@@ -4,7 +4,7 @@ import { sql } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, accountName, bankName, accountNumber, promoImageUrl, items, creatorName, creatorPicture, creatorUserId } = body;
+    const { name, accountName, bankName, accountNumber, promoImageUrl, shippingDate, items, creatorName, creatorPicture, creatorUserId } = body;
 
     if (!name || !accountName || !bankName || !accountNumber || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -15,8 +15,8 @@ export async function POST(request: Request) {
 
     // 1. Insert Order metadata
     const orderResult = await sql`
-      INSERT INTO orders (name, account_name, bank_name, account_number, promo_image_url, creator_name, creator_picture, creator_user_id)
-      VALUES (${name}, ${accountName}, ${bankName}, ${accountNumber}, ${promoImageUrl || null}, ${creatorName || null}, ${creatorPicture || null}, ${creatorUserId || null})
+      INSERT INTO orders (name, account_name, bank_name, account_number, promo_image_url, creator_name, creator_picture, creator_user_id, shipping_date)
+      VALUES (${name}, ${accountName}, ${bankName}, ${accountNumber}, ${promoImageUrl || null}, ${creatorName || null}, ${creatorPicture || null}, ${creatorUserId || null}, ${shippingDate || null})
       RETURNING id
     `;
 

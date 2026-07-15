@@ -81,6 +81,7 @@ export async function GET(
         bankName: order.bank_name,
         accountNumber: order.account_number,
         promoImageUrl: order.promo_image_url,
+        shippingDate: order.shipping_date,
         creatorName: order.creator_name,
         creatorPicture: order.creator_picture,
         creatorUserId: order.creator_user_id,
