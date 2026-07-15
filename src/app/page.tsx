@@ -82,6 +82,7 @@ export default function Home() {
   const [success, setSuccess] = useState<boolean>(false);
   const [successData, setSuccessData] = useState<{ buyerOrderId: string; slipUrl: string; analysis?: any } | null>(null);
   const [createdOrderLink, setCreatedOrderLink] = useState<string | null>(null);
+  const [selectedSlipUrl, setSelectedSlipUrl] = useState<string | null>(null);
 
   // Parse URL search params for orderId
   useEffect(() => {
@@ -1259,8 +1260,8 @@ export default function Home() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                             {bo.items.map((item, idx) => (
                               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                                <span style={{ color: '#475569' }}>{item.name} x{item.quantity}</span>
-                                <span style={{ fontWeight: 700 }}>{(item.price * item.quantity).toLocaleString()} ฿</span>
+                                <span style={{ color: '#475569' }}>{item.name}</span>
+                                <span style={{ fontWeight: 700 }}>x{item.quantity}</span>
                               </div>
                             ))}
                             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #e2e8f0', paddingTop: '6px', marginTop: '2px', fontSize: '13px', fontWeight: 800 }}>
@@ -1269,11 +1270,10 @@ export default function Home() {
                             </div>
                           </div>
 
-                          {!bo.payLater && bo.slipUrl && bo.slipUrl !== 'PAY_LATER' && (
-                            <a 
-                              href={bo.slipUrl} 
-                              target="_blank" 
-                              rel="noreferrer"
+                           {!bo.payLater && bo.slipUrl && bo.slipUrl !== 'PAY_LATER' && (
+                            <button 
+                              type="button"
+                              onClick={() => setSelectedSlipUrl(bo.slipUrl)}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -1295,7 +1295,7 @@ export default function Home() {
                               onMouseOut={(e) => { e.currentTarget.style.background = '#f0f9ff'; }}
                             >
                               📄 เปิดดูภาพสลิป
-                            </a>
+                            </button>
                           )}
                         </div>
                       ))
@@ -1751,6 +1751,97 @@ export default function Home() {
             {loading ? <div className={styles.spinner}></div> : '📢 ตั้งแผง'}
           </button>
         </form>
+      </div>
+    )}
+
+    {selectedSlipUrl && (
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '16px',
+          backdropFilter: 'blur(4px)',
+          transition: 'all 0.3s ease'
+        }}
+        onClick={() => setSelectedSlipUrl(null)}
+      >
+        <div 
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            padding: '12px',
+            maxWidth: '95%',
+            maxHeight: '90%',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            overflow: 'hidden'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            type="button"
+            onClick={() => setSelectedSlipUrl(null)}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}
+          >
+            ✕
+          </button>
+          <div style={{ overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <img 
+              src={selectedSlipUrl} 
+              alt="Payment Slip" 
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '75vh', 
+                borderRadius: '12px', 
+                objectFit: 'contain',
+                display: 'block' 
+              }} 
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+            <a 
+              href={selectedSlipUrl} 
+              target="_blank" 
+              rel="noreferrer"
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#0284c7',
+                textDecoration: 'underline'
+              }}
+            >
+              💾 เปิดในหน้าต่างใหม่ (เพื่อดาวน์โหลด)
+            </a>
+          </div>
+        </div>
       </div>
     )}
     </div>
