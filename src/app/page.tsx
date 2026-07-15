@@ -766,8 +766,8 @@ export default function Home() {
   };
 
   // Share/Send Flex message inside LIFF
-  const shareMessage = async (messagePayload: any, directLink: string) => {
-    console.log('Starting shareMessage...', { messagePayload, directLink });
+  const shareMessage = async (messagePayload: any, directLink: string, enablePicker = true) => {
+    console.log('Starting shareMessage...', { messagePayload, directLink, enablePicker });
     try {
       const liff = (await import('@line/liff')).default;
       
@@ -780,14 +780,16 @@ export default function Home() {
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
       if (!liffId) {
         console.log('No LIFF ID found');
-        alert(`โหมดพัฒนา (ไม่มี LIFF ID) คัดลอกลิงก์ไปแชร์: ${directLink}`);
+        if (enablePicker) {
+          alert(`โหมดพัฒนา (ไม่มี LIFF ID) คัดลอกลิงก์ไปแชร์: ${directLink}`);
+        }
         return;
       }
 
       // 1. Try sending directly to the active chat context (Reply/Send)
       const context = liff.getContext();
       console.log('LIFF Context:', context);
-      if (context && context.type && ['utou', 'room', 'group', 'external'].includes(context.type)) {
+      if (context && context.type && ['utou', 'room', 'group'].includes(context.type)) {
         console.log('Attempting liff.sendMessages...');
         try {
           await liff.sendMessages([messagePayload]);
@@ -796,6 +798,11 @@ export default function Home() {
         } catch (msgErr: any) {
           console.error('liff.sendMessages failed:', msgErr);
         }
+      }
+
+      if (!enablePicker) {
+        console.log('Picker sharing is disabled for this flow, skipping picker/alert.');
+        return;
       }
 
       // 2. Fallback to shareTargetPicker if sendMessages fails or context is not available
@@ -824,8 +831,10 @@ export default function Home() {
       alert(`สร้างออเดอร์สำเร็จ! กรุณาคัดลอกลิงก์ไปแชร์ในแชท: ${directLink}`);
     } catch (err) {
       console.error('Error in shareMessage:', err);
-      navigator.clipboard.writeText(directLink);
-      alert(`เกิดข้อผิดพลาด: ${directLink}`);
+      if (enablePicker) {
+        navigator.clipboard.writeText(directLink);
+        alert(`เกิดข้อผิดพลาด: ${directLink}`);
+      }
     }
   };
 
@@ -1019,7 +1028,7 @@ export default function Home() {
           payLater,
           finalLink
         );
-        await shareMessage(receiptPayload, finalLink);
+        await shareMessage(receiptPayload, finalLink, false);
       } else {
         setError(resData.error || 'Failed to submit order.');
       }
