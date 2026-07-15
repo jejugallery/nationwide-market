@@ -205,13 +205,10 @@ export default function Home() {
     }
   }, [orderId, orderDetails, loading]);
 
-  // Automatically alert and close window after order placement success
+  // Automatically close window after order placement success
   useEffect(() => {
     if (success && orderId) {
-      const totalQty = (Object.values(quantities) as number[]).reduce((a, b) => a + b, 0);
-      const isCancelled = totalQty === 0;
       const timer = setTimeout(() => {
-        alert(isCancelled ? "ยกเลิกคำสั่งซื้อเรียบร้อย" : "ทำรายการสำเร็จ");
         import('@line/liff').then((m) => {
           const liff = m.default;
           try {
@@ -220,10 +217,10 @@ export default function Home() {
             window.close();
           }
         });
-      }, 500);
+      }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [success, orderId, quantities]);
+  }, [success, orderId]);
 
 
   // Fetch orders created by this user when on setting-up screen
@@ -1102,50 +1099,64 @@ export default function Home() {
 
   // Success view for Place Order
   if (success && orderId) {
+    const totalQty = (Object.values(quantities) as number[]).reduce((a, b) => a + b, 0);
+    const isCancelled = totalQty === 0;
+
     return (
-      <div className={styles.container}>
-        <div className={styles.card}>
-          <div className={styles.successOverlay}>
-            <div className={styles.successIconAnim}>✓</div>
-            <h2 className={styles.title}>สั่งสินค้าเรียบร้อย!</h2>
-            <p className={styles.subtitle}>แนบสลิปและยืนยันความถูกต้องผ่าน Gemini AI สำเร็จ</p>
+      <div className={styles.container} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '20px', animation: 'fadeIn 0.5s ease-out' }}>
+        <div style={{
+          backgroundColor: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          borderRadius: '24px',
+          padding: '48px 32px',
+          width: '100%',
+          maxWidth: '400px',
+          textAlign: 'center',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '24px'
+        }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            backgroundColor: isCancelled ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '40px',
+            color: isCancelled ? '#ef4444' : '#10b981',
+            boxShadow: isCancelled ? '0 0 20px rgba(239, 68, 68, 0.2)' : '0 0 20px rgba(16, 185, 129, 0.2)',
+          }}>
+            {isCancelled ? '✕' : '✓'}
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+              {isCancelled ? 'ยกเลิกคำสั่งซื้อเรียบร้อย' : 'ทำรายการสำเร็จ'}
+            </h2>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+              กำลังปิดหน้าต่างเพื่อกลับเข้าสู่หน้าแชทของคุณ...
+            </p>
+          </div>
 
-            <div className={styles.billingPanel} style={{ width: '100%', marginTop: '10px' }}>
-              <div className={styles.billingDetail}>
-                <span className={styles.label}>ยอดเงินที่สั่ง</span>
-                <span className={styles.totalValue} style={{ fontSize: '18px' }}>{calculateTotal().toLocaleString()} ฿</span>
-              </div>
-              <div className={styles.billingDetail}>
-                <span className={styles.label}>ชื่อผู้สั่ง</span>
-                <span className={styles.label} style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{liffProfile?.displayName}</span>
-              </div>
-              {successData?.analysis && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid rgba(16, 185, 129, 0.1)', paddingTop: '10px', marginTop: '4px' }}>
-                  <span className={styles.label} style={{ fontSize: '11px', color: 'var(--primary-light)' }}>🛡️ รายละเอียดจากการตรวจสอบสลิป:</span>
-                  <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '4px', color: 'var(--text-secondary)' }}>
-                    <span>ธนาคารผู้รับ: {successData.analysis.receiver}</span>
-                    <span>จำนวนเงินบนสลิป: {successData.analysis.amount.toLocaleString()} ฿</span>
-                    <span>รหัสอ้างอิง: {successData.analysis.ref_no || 'ไม่พบรหัสอ้างอิง'}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button 
-              onClick={() => {
-                setSuccess(false);
-                setSlipBase64(null);
-                const initialQuantities: { [itemId: string]: number } = {};
-                orderDetails?.items.forEach((item) => {
-                  initialQuantities[item.id] = 0;
-                });
-                setQuantities(initialQuantities);
-              }} 
-              className={styles.btn}
-              style={{ width: '100%', marginTop: '16px' }}
-            >
-              กลับหน้าสั่งสินค้า
-            </button>
+          <div style={{
+            width: '100%',
+            height: '6px',
+            backgroundColor: 'var(--card-border)',
+            borderRadius: '3px',
+            overflow: 'hidden',
+            marginTop: '8px'
+          }}>
+            <div style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: isCancelled ? '#ef4444' : '#10b981',
+              borderRadius: '3px',
+              animation: 'shrinkWidth 2.5s linear forwards'
+            }} />
           </div>
         </div>
       </div>
