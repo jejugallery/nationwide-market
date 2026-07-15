@@ -21,12 +21,6 @@ export async function POST(
       );
     }
 
-    if (!payLater && (!slipBase64 || !slipMimeType)) {
-      return NextResponse.json(
-        { success: false, error: 'Slip image is required when not choosing Pay Later.' },
-        { status: 400 }
-      );
-    }
 
     // 1. Fetch order details to get expected account name
     const orderResult = await sql`
@@ -106,6 +100,13 @@ export async function POST(
           quantity: newUnpaidQty
         });
       }
+    }
+
+    if (calculatedTotal > 0 && !payLater && (!slipBase64 || !slipMimeType)) {
+      return NextResponse.json(
+        { success: false, error: 'Slip image is required when not choosing Pay Later.' },
+        { status: 400 }
+      );
     }
 
     if (calculatedTotal === 0) {
