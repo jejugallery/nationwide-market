@@ -451,7 +451,7 @@ export default function Home() {
             },
             {
               type: 'text',
-              text: `ส่งสินค้าวันที่: ${shippingDate || 'โปรดสอบถามผู้ขาย'}`,
+              text: `พร้อมส่งสินค้า: ${shippingDate || 'โปรดสอบถามผู้ขาย'}`,
               size: 'xs',
               color: '#ef4444',
               weight: 'bold',
@@ -1079,7 +1079,7 @@ export default function Home() {
               )}
               {orderDetails.shippingDate && (
                 <span style={{ fontSize: '16px', color: '#ef4444', fontWeight: 800 }}>
-                  🚚 ส่งสินค้าวันที่: {orderDetails.shippingDate}
+                  🚚 พร้อมส่งสินค้า: {orderDetails.shippingDate}
                 </span>
               )}
             </div>
@@ -1458,7 +1458,7 @@ export default function Home() {
                         </span>
                         {co.shippingDate && (
                           <span style={{ fontSize: '10px', fontWeight: 700, color: '#ef4444', marginTop: '2px' }}>
-                            📅 ส่งสินค้า: {co.shippingDate}
+                            📅 พร้อมส่งสินค้า: {co.shippingDate}
                           </span>
                         )}
                       </div>
