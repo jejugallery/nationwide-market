@@ -13,11 +13,14 @@ export async function verifySlip(
   mimeType: string,
   expectedReceiver: string
 ): Promise<SlipAnalysisResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  let apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY environment variable is not defined.');
   }
+
+  // Clean the API key (remove literal quotes, spaces, etc.)
+  apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
 
   // Remove the data prefix if present (e.g., "data:image/png;base64,")
   const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');

@@ -1,9 +1,12 @@
 export async function uploadToImgbb(base64Data: string): Promise<string> {
-  const apiKey = process.env.IMGBB_API_KEY;
+  let apiKey = process.env.IMGBB_API_KEY;
 
   if (!apiKey) {
     throw new Error('IMGBB_API_KEY environment variable is not defined.');
   }
+
+  // Clean the API key (remove literal quotes, spaces, etc.)
+  apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
 
   // Remove the data URL prefix if it exists (e.g. data:image/png;base64,)
   const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');

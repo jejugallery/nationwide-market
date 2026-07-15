@@ -1524,15 +1524,6 @@ export default function Home() {
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                      <button 
-                        type="button"
-                        onClick={() => handleCopyLink(`https://liff.line.me/${process.env.NEXT_PUBLIC_LIFF_ID || ''}?orderId=${co.id}`)}
-                        className={styles.copyBadge}
-                        style={{ padding: '4px 10px', fontSize: '10px' }}
-                      >
-                        ❐ คัดลอกลิงก์แชร์
-                      </button>
-
                       <button
                         type="button"
                         onClick={() => handleToggleOrderStatus(co.id, co.isActive)}
