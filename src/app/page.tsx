@@ -586,11 +586,19 @@ export default function Home() {
           contents: [
             {
               type: 'text',
-              text: `${item.name} x${item.quantity}`,
+              text: item.name,
               size: 'sm',
               color: '#555555',
               flex: 4,
               wrap: true,
+            },
+            {
+              type: 'text',
+              text: `x${item.quantity}`,
+              size: 'sm',
+              color: '#555555',
+              align: 'end',
+              flex: 1,
             },
           ],
         }));
