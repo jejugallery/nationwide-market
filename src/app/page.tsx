@@ -619,7 +619,7 @@ export default function Home() {
           : [
               {
                 type: 'text',
-                text: 'มีคำสั่งซื้อจาก',
+                text: 'สรุปคำสั่งซื้อของ',
                 align: 'center',
                 color: '#FFFFFF',
                 size: 'lg',
@@ -648,7 +648,7 @@ export default function Home() {
                     type: 'text',
                     text: orderNameVal,
                     size: 'md',
-                    color: '#888888',
+                    color: '#1e3a8a',
                     weight: 'bold',
                   },
                   {
@@ -668,7 +668,7 @@ export default function Home() {
                     type: 'text',
                     text: orderNameVal,
                     size: 'lg',
-                    color: '#888888',
+                    color: '#1e3a8a',
                     weight: 'bold',
                   },
                   {
