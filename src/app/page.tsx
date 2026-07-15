@@ -584,6 +584,27 @@ export default function Home() {
         : `✅ คุณ ${buyerName} สั่งซื้อสินค้าแล้ว!`,
       contents: {
         type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: isCancelled ? 'ยกเลิกคำสั่งซื้อจาก' : 'มีคำสั่งซื้อจาก',
+              align: 'center',
+              color: '#FFFFFF',
+              size: 'lg',
+            },
+            {
+              type: 'text',
+              text: buyerName,
+              align: 'center',
+              size: 'xs',
+              color: '#FFFFFF',
+            },
+          ],
+          backgroundColor: isCancelled ? '#64748b' : '#1e3a8a',
+        },
         body: {
           type: 'box',
           layout: 'vertical',
@@ -591,57 +612,12 @@ export default function Home() {
             {
               type: 'box',
               layout: 'vertical',
-              backgroundColor: isCancelled ? '#64748b' : '#0369a1',
               paddingAll: 'xl',
               contents: [
                 {
                   type: 'text',
-                  text: isCancelled ? '🚫 ยกเลิกคำสั่งซื้อเรียบร้อย' : '🛒 มีคำสั่งซื้อเข้ามาใหม่!',
-                  color: isCancelled ? '#cbd5e1' : '#38bdf8',
-                  weight: 'bold',
-                  size: 'xs',
-                },
-                {
-                  type: 'box',
-                  layout: 'horizontal',
-                  margin: 'md',
-                  spacing: 'md',
-                  contents: [
-                    (buyerPicture && buyerPicture.startsWith('https')) ? {
-                      type: 'image',
-                      url: buyerPicture,
-                      size: 'xxs',
-                      aspectRatio: '1:1',
-                      aspectMode: 'cover',
-                      cornerRadius: 'xxl',
-                    } : {
-                      type: 'text',
-                      text: '👤',
-                      color: '#ffffff',
-                      size: 'sm',
-                      flex: 0,
-                    },
-                    {
-                      type: 'text',
-                      text: `จาก คุณ ${buyerName}`,
-                      color: '#ffffff',
-                      size: 'md',
-                      weight: 'bold',
-                      wrap: true,
-                    }
-                  ]
-                }
-              ],
-            },
-            {
-              type: 'box',
-              layout: 'vertical',
-              paddingAll: 'xl',
-              contents: [
-                {
-                  type: 'text',
-                  text: `ร้านค้า: ${orderNameVal}`,
-                  size: 'sm',
+                  text: orderNameVal,
+                  size: 'lg',
                   color: '#888888',
                   weight: 'bold',
                 },
@@ -678,7 +654,7 @@ export default function Home() {
                       weight: 'bold',
                       size: 'md',
                       align: 'end',
-                      color: isCancelled ? '#64748b' : '#0284c7',
+                      color: isCancelled ? '#64748b' : '#1e3a8a',
                     },
                   ],
                 },
@@ -686,7 +662,7 @@ export default function Home() {
                   type: 'box',
                   layout: 'horizontal',
                   margin: 'md',
-                  backgroundColor: isCancelled ? '#64748b14' : (payLaterReceipt ? '#47556914' : '#0284c714'),
+                  backgroundColor: isCancelled ? '#64748b14' : (payLaterReceipt ? '#47556914' : '#1e3a8a14'),
                   cornerRadius: 'md',
                   paddingAll: 'md',
                   contents: [
@@ -696,7 +672,7 @@ export default function Home() {
                         ? '🚫 ยกเลิกคำสั่งซื้อเรียบร้อย' 
                         : (payLaterReceipt ? '🕒 สั่งก่อนจ่ายทีหลัง (ค้างชำระ)' : '🛡️ แนบสลิปและยืนยันแล้วโดย AI'),
                       size: 'xs',
-                      color: isCancelled ? '#ef4444' : (payLaterReceipt ? '#475569' : '#0284c7'),
+                      color: isCancelled ? '#ef4444' : (payLaterReceipt ? '#475569' : '#1e3a8a'),
                       align: 'center',
                       weight: 'bold',
                     },
